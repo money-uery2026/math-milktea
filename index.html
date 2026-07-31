@@ -673,6 +673,10 @@ async function cloudSubmitHW(submission){
   const cloud=await cloudFetch()||{homeworks:[],submissions:[]};
   if(!cloud.submissions)cloud.submissions=[];
   cloud.submissions.push(submission);
+  // 只保留最近20条提交，避免Gist超限
+  if(cloud.submissions.length>20){
+    cloud.submissions=cloud.submissions.slice(-20);
+  }
   const ok=await cloudSave(cloud);
   if(ok)toast('☁️ 作业已上传，老师可见');
   return ok;
@@ -980,7 +984,30 @@ PAGES.homework=function(){
 function handleHWUpload(input){
   DB._hwTemp=DB._hwTemp||[];
   Array.from(input.files).forEach(f=>{
-    const r=new FileReader();r.onload=e=>{DB._hwTemp.push(e.target.result);render();};r.readAsDataURL(f);
+    compressImage(f,720,0.6).then(dataUrl=>{
+      DB._hwTemp.push(dataUrl);
+      render();
+    });
+  });
+}
+// 压缩图片：maxW=最大宽度，quality=质量0-1
+function compressImage(file,maxW,quality){
+  return new Promise(resolve=>{
+    const r=new FileReader();
+    r.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        let {width:w,height:h}=img;
+        if(w>maxW){h=h*maxW/w;w=maxW;}
+        const canvas=document.createElement('canvas');
+        canvas.width=w;canvas.height=h;
+        const ctx=canvas.getContext('2d');
+        ctx.drawImage(img,0,0,w,h);
+        resolve(canvas.toDataURL('image/jpeg',quality));
+      };
+      img.src=e.target.result;
+    };
+    r.readAsDataURL(file);
   });
 }
 function delHWThumb(i){DB._hwTemp.splice(i,1);render();}
@@ -994,14 +1021,15 @@ function submitHW(){
 function confirmHW(){
   closeModal();
   const subDt=todayStr()+' '+new Date().toTimeString().slice(0,5);
-  DB.student.homeworkSubs.push({dt:subDt,imgs:[...DB._hwTemp],status:'pending'});
+  const imgs=[...DB._hwTemp];
+  DB.student.homeworkSubs.push({dt:subDt,imgs:imgs,status:'pending'});
   DB._hwTemp=[];
   addBoba(3,'完成作业','📤');recomputePower();
-  // 上传到云端，让老师端也能收到
+  // 上传到云端（图片已压缩，可正常同步）
   cloudSubmitHW({
     dt:subDt,
-    imgs:[],  // 图片太大不上传到云端，只通知老师有新提交
-    imgCount:DB.student.homeworkSubs[DB.student.homeworkSubs.length-1].imgs.length,
+    imgs:imgs,
+    imgCount:imgs.length,
     status:'pending'
   });
   toast('🎉 作业提交成功！+3颗芋泥球已到账！');
