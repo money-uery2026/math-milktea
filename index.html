@@ -574,6 +574,10 @@ const DEFAULT_DATA={
   },
   currentPage:'home',
   sidebarOpen:false,
+  _hwTemp:[],       // 待提交作业的临时图片（刷新不丢）
+  _quizState:null,  // 闯关中的进度（刷新不丢）
+  _cloudHwDate:'',
+  _ts:0,
 };
 
 let DB={};
@@ -590,20 +594,28 @@ function loadDB(){
 let _lastSaveTs=0;
 function saveDB(){
   _lastSaveTs=Date.now();
+  DB._ts=_lastSaveTs;  // 每次写入都打时间戳，防止跨标签旧数据覆盖新数据
   localStorage.setItem(KEY,JSON.stringify(DB));
   if(_syncChannel){try{_syncChannel.postMessage({type:'sync',t:Date.now()});}catch(e){}}
 }
 function _onSyncMessage(){
+  // 只在跨标签页同步，且绝对不覆盖内存里写入时间更近的内容
   const raw=localStorage.getItem(KEY);
-  if(raw){
-    try{
-      const newDB=JSON.parse(raw);
-      newDB.currentPage=DB.currentPage;
-      newDB.sidebarOpen=DB.sidebarOpen;
-      DB=newDB;
-      render();
-    }catch(e){}
-  }
+  if(!raw)return;
+  try{
+    const parsed=JSON.parse(raw);
+    // 比较时间戳：只有当存储里比内存更新时才覆盖
+    const memTs=DB._ts||0;
+    const storTs=parsed._ts||0;
+    if(storTs<=memTs)return;
+    parsed.currentPage=DB.currentPage;
+    parsed.sidebarOpen=DB.sidebarOpen;
+    parsed.teacher.loggedIn=DB.teacher.loggedIn;
+    parsed._hwTemp=DB._hwTemp||parsed._hwTemp; // 临时图片优先保留内存
+    parsed._quizState=DB._quizState||parsed._quizState; // 闯关进度优先保留内存
+    DB=parsed;
+    render();renderSidebar();
+  }catch(e){}
 }
 function refreshFromStorage(){
   const raw=localStorage.getItem(KEY);
@@ -694,6 +706,18 @@ async function cloudGradeHW(submission_dt,status,feedback,boba){
   return true;
 }
 
+// 合并云端 submission 到本地：云端有图用云端，否则保留本地图；批改状态以云端为主
+function mergeSubmission(local, cloud){
+  if(!local)return {...cloud};
+  const hasLocalImgs=local.imgs&&local.imgs.length>0;
+  const hasCloudImgs=cloud.imgs&&cloud.imgs.length>0;
+  return {
+    ...local,
+    ...cloud,
+    imgs: hasCloudImgs ? cloud.imgs : (hasLocalImgs ? local.imgs : cloud.imgs || [])
+  };
+}
+
 // 从云端拉取数据（学生端获取作业 / 老师端获取提交）
 async function cloudPull(){
   if(_cloudSyncing)return;
@@ -717,51 +741,79 @@ async function cloudPull(){
       }
     }
 
-    // 老师端：拉取学生提交的作业
+    // 老师端：拉取学生提交的作业 + 本地 homeworkSubs 也合并
     if(cloud.submissions&&cloud.submissions.length){
-      let newCount=0;
+      let changed=false, newCount=0;
       cloud.submissions.forEach(sub=>{
-        if(!DB.teacher.toGrade.find(g=>g.dt===sub.dt)){
-          DB.teacher.toGrade.push(sub);
-          newCount++;
+        // 老师待批改列表
+        const tg=DB.teacher.toGrade.find(g=>g.dt===sub.dt);
+        if(!tg){
+          DB.teacher.toGrade.push(mergeSubmission(null, sub));
+          newCount++; changed=true;
         }else{
-          const existing=DB.teacher.toGrade.find(g=>g.dt===sub.dt);
-          if(sub.status&&sub.status!=='pending'&&!existing.statusUpdated){
-            existing.status=sub.status;
-            existing.feedback=sub.feedback;
-            existing.boba=sub.boba;
-            existing.statusUpdated=true;
+          const merged=mergeSubmission(tg, sub);
+          const keys=Object.keys(merged);
+          for(let k of keys){
+            if(JSON.stringify(tg[k])!==JSON.stringify(merged[k])){
+              tg[k]=merged[k]; changed=true;
+            }
+          }
+          if(sub.status&&sub.status!=='pending'){tg.statusUpdated=true;changed=true;}
+        }
+        // 学生端 homeworkSubs 本地列表也要同步（学生账号打开老师账号也需要）
+        const ss=DB.student.homeworkSubs.find(g=>g.dt===sub.dt);
+        if(!ss){ DB.student.homeworkSubs.push(mergeSubmission(null, sub)); changed=true; }
+        else{
+          const merged=mergeSubmission(ss, sub);
+          for(let k of Object.keys(merged)){
+            if(JSON.stringify(ss[k])!==JSON.stringify(merged[k])){
+              ss[k]=merged[k]; changed=true;
+            }
           }
         }
       });
+      if(changed)saveDB();
       if(newCount>0){
-        saveDB();
         toast('📥 收到'+newCount+'份新作业提交！');
+        render();
+      }else if(changed){
         render();
       }
     }
 
-    // 学生端：拉取批改结果
+    // 学生端：拉取批改结果 → 同步到 homeworkHistory 和 homeworkSubs
     if(cloud.submissions&&cloud.submissions.length){
+      let changed=false;
       cloud.submissions.forEach(sub=>{
+        // 同步到 homeworkHistory（已批改）
         if(sub.status==='graded'){
           const existing=DB.student.homeworkHistory.find(h=>h.dt===sub.dt);
           if(!existing||(existing.status!=='graded')){
             if(existing){
               existing.status='graded';
               existing.comment=sub.feedback||'';
+              if(sub.imgs&&sub.imgs.length>0)existing.imgs=sub.imgs;
             }else{
-              DB.student.homeworkHistory.unshift({dt:sub.dt,status:'graded',comment:sub.feedback||''});
+              DB.student.homeworkHistory.unshift({
+                dt:sub.dt,status:'graded',comment:sub.feedback||'',
+                imgs: sub.imgs||DB.student.homeworkSubs.find(s=>s.dt===sub.dt)?.imgs||[]
+              });
             }
-            if(sub.boba){
-              addBoba(sub.boba,'作业批改','🌟');
-            }
-            saveDB();
-            toast('🎉 作业批改结果已同步！');
-            render();
+            if(sub.boba){addBoba(sub.boba,'作业批改','🌟');}
+            changed=true;
+          }else{
+            // 已是 graded，仅同步图片（如果云端有）
+            if(sub.imgs&&sub.imgs.length>0&&!existing.imgs){existing.imgs=sub.imgs;changed=true;}
+            if(sub.feedback&&existing.comment!==sub.feedback){existing.comment=sub.feedback;changed=true;}
           }
         }
+        // 同步批改状态到 homeworkSubs
+        const subLocal=DB.student.homeworkSubs.find(h=>h.dt===sub.dt);
+        if(subLocal){
+          if(sub.status!==undefined&&sub.status!==subLocal.status){subLocal.status=sub.status;changed=true;}
+        }
       });
+      if(changed){saveDB();toast('🎉 作业批改结果已同步！');render();}
     }
   }catch(e){}
   _cloudSyncing=false;
@@ -978,17 +1030,24 @@ PAGES.homework=function(){
   </div>
   <div class="section-label">📜 历史提交记录</div>
   <div class="card">${s.homeworkHistory.map(h=>`
-    <div class="log"><div><div style="font-weight:600">${h.dt}</div><div class="lt">${hist[h.status].icon} ${hist[h.status].t}${h.comment?' · '+h.comment:''}</div></div></div>`).join('')}
+    <div>
+      <div class="log"><div><div style="font-weight:600">${h.dt}</div><div class="lt">${hist[h.status].icon} ${hist[h.status].t}${h.comment?' · '+h.comment:''}</div></div></div>
+      ${h.imgs&&h.imgs.length?`<div class="thumbs mb">${h.imgs.map(img=>`<div class="thumb" style="width:64px;height:64px"><img src="${img}"></div>`).join('')}</div>`:''}
+    </div>`).join('')}
   </div>`;
 };
 function handleHWUpload(input){
   DB._hwTemp=DB._hwTemp||[];
-  Array.from(input.files).forEach(f=>{
+  const files=Array.from(input.files);
+  let remaining=files.length;
+  files.forEach(f=>{
     compressImage(f,720,0.6).then(dataUrl=>{
       DB._hwTemp.push(dataUrl);
-      render();
+      remaining--;
+      if(remaining===0){saveDB();render();}
     });
   });
+  input.value=''; // 防止下次选同一张不触发 change
 }
 // 压缩图片：maxW=最大宽度，quality=质量0-1
 function compressImage(file,maxW,quality){
@@ -1010,7 +1069,7 @@ function compressImage(file,maxW,quality){
     r.readAsDataURL(file);
   });
 }
-function delHWThumb(i){DB._hwTemp.splice(i,1);render();}
+function delHWThumb(i){DB._hwTemp.splice(i,1);saveDB();render();}
 function submitHW(){
   if(!DB._hwTemp||DB._hwTemp.length===0){toast('📸 请先拍照上传作业哦~');return;}
   openModal(`
@@ -1023,8 +1082,11 @@ function confirmHW(){
   const subDt=todayStr()+' '+new Date().toTimeString().slice(0,5);
   const imgs=[...DB._hwTemp];
   DB.student.homeworkSubs.push({dt:subDt,imgs:imgs,status:'pending'});
+  // 立即写入历史记录（待批改状态，可看到图）
+  DB.student.homeworkHistory.unshift({dt:subDt,status:'pending',comment:'',imgs:imgs});
   DB._hwTemp=[];
   addBoba(3,'完成作业','📤');recomputePower();
+  saveDB();
   // 上传到云端（图片已压缩，可正常同步）
   cloudSubmitHW({
     dt:subDt,
@@ -1061,7 +1123,8 @@ PAGES.quiz=function(){
 function startQuiz(id){
   const qs=DB.teacher.quizBank[id];
   if(!qs||!qs.length){toast('此关卡题目还在准备中~');return;}
-  DB._quizState={active:true,levelId:id,idx:0,correct:0,qs};
+  DB._quizState={active:true,levelId:id,idx:0,correct:0,qs,answered:false};
+  saveDB();
   render();
 }
 function quizPlaying(){
@@ -1103,6 +1166,7 @@ function answerQuiz(i){
   }
   setTimeout(()=>{
     st.idx++;st.answered=false;
+    saveDB(); // 每题做完都保存闯关进度
     if(st.idx>=st.qs.length){
       const lvl=DB.student.quizLevels.find(l=>l.id===st.levelId);
       const bonus=lvl?lvl.reward:0;
@@ -1322,8 +1386,18 @@ function confirmGrade(idx){
   const comment=document.getElementById('gcomment').value;
   const g=DB.teacher.toGrade[idx];
   g.status='graded';
-  g.score=score;g.comment=comment;
-  DB.student.homeworkHistory.unshift({dt:todayStr(),status:'graded',comment});
+  g.feedback=comment;g.boba=score;g.score=score;g.comment=comment;
+  // 同步到学生端：homeworkSubs + homeworkHistory（图片保留）
+  const imgs=g.imgs||[];
+  const subLocal=DB.student.homeworkSubs.find(s=>s.dt===g.dt);
+  if(subLocal){subLocal.status='graded';subLocal.feedback=comment;subLocal.boba=score;}
+  const hist=DB.student.homeworkHistory.find(h=>h.dt===g.dt);
+  if(hist){
+    hist.status='graded';hist.comment=comment;hist.boba=score;
+    if(imgs.length&&!hist.imgs)hist.imgs=imgs;
+  }else{
+    DB.student.homeworkHistory.unshift({dt:g.dt,status:'graded',comment,imgs,boba:score});
+  }
   saveDB();
   // 上传批改结果到云端，让学生端也能收到
   cloudGradeHW(g.dt,'graded',comment,score);
@@ -1718,32 +1792,42 @@ function init(){
   window.addEventListener('storage',function(ev){
     if(ev.key===KEY)_onSyncMessage();
   });
-  // polling sync: check localStorage every 3s
-  setInterval(function(){
-    const raw=localStorage.getItem(KEY);
-    if(!raw)return;
-    const cur=JSON.stringify(DB);
-    if(raw!==cur){
-      try{
-        const parsed=JSON.parse(raw);
-        parsed.currentPage=DB.currentPage;
-        parsed.sidebarOpen=DB.sidebarOpen;
-        parsed.teacher.loggedIn=DB.teacher.loggedIn;
-        DB=parsed;
-        render();renderSidebar();
-      }catch(e){}
-    }
-  },3000);
   // cloud sync: poll server every 10s for cross-device data
   cloudPull();
   setInterval(cloudPull,10000);
 }
 init();
-// Register Service Worker for PWA
+// Register Service Worker for PWA (网络优先缓存策略，确保永远拿到最新代码)
 if('serviceWorker' in navigator){
   window.addEventListener('load',function(){
-    navigator.serviceWorker.register('./sw.js').catch(function(err){
+    navigator.serviceWorker.register('./sw.js').then(function(reg){
+      // 监听 SW 更新：发现新版本立即激活+提示刷新
+      reg.addEventListener('updatefound',function(){
+        const newWorker=reg.installing;
+        newWorker.addEventListener('statechange',function(){
+          if(newWorker.state==='installed'&&navigator.serviceWorker.controller){
+            // 有新版本，激活后提示用户刷新
+            newWorker.postMessage('SKIP_WAITING');
+            setTimeout(function(){
+              toast('🎉 新版本已就绪！点击刷新以启用新功能');
+              // 加个刷新按钮 toast
+              const t=document.getElementById('toast');
+              t.innerHTML+='<button onclick="location.reload()" style="margin-left:8px;padding:5px 12px;background:#fff;color:var(--main-d);border-radius:14px;border:none;font-weight:700;">刷新</button>';
+            },500);
+          }
+        });
+      });
+      // 每分钟检查一次更新
+      setInterval(function(){try{reg.update();}catch(e){}},60000);
+    }).catch(function(err){
       console.log('SW registration failed:',err);
+    });
+    // SW 激活后立即刷新（如果第一次升级）
+    let refreshing=false;
+    navigator.serviceWorker.addEventListener('controllerchange',function(){
+      if(refreshing)return;
+      refreshing=true;
+      location.reload();
     });
   });
 }
