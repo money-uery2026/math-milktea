@@ -642,6 +642,7 @@ const GIST_HEADERS={
   'Content-Type':'application/json'
 };
 let _cloudSyncing=false;
+let _lastPushTs=0;
 
 async function cloudFetch(){
   try{
@@ -651,7 +652,7 @@ async function cloudFetch(){
     const raw=gist.files&&gist.files['data.json']&&gist.files['data.json'].content;
     if(!raw)return null;
     return JSON.parse(raw);
-  }catch(e){return null;}
+  }catch(e){console.error('cloudFetch',e);return null;}
 }
 
 async function cloudSave(data){
@@ -664,53 +665,110 @@ async function cloudSave(data){
       })
     });
     return res.ok;
-  }catch(e){return false;}
+  }catch(e){console.error('cloudSave',e);return false;}
 }
 
-// 老师发布作业 → 上传到云端
+// ====== 学生数据打包 / 解包 ======
+// 所有老师端改动 → 打包 studentProfile 写入云端
+function _buildStudentProfile(){
+  const s=DB.student;
+  return {
+    boba: s.boba,
+    bobaBreakdown: JSON.parse(JSON.stringify(s.bobaBreakdown||{})),
+    bobaLog: JSON.parse(JSON.stringify((s.bobaLog||[]).slice(-20))),
+    quizTotal: s.quizTotal,
+    quizLog: JSON.parse(JSON.stringify((s.quizLog||[]).slice(-20))),
+    quizToday: s.quizToday||0,
+    power: s.power,
+    notes: JSON.parse(JSON.stringify(s.notes||[])),
+    chapter: s.chapter||'',
+    avatar: s.avatar||'🧋',
+    theme: s.theme||'light',
+    missionDate: DB._cloudHwDate||'',
+    missionSig: DB._cloudHwSig||'',
+    updatedAt: Date.now()
+  };
+}
+
+// 从 studentProfile 回填到本地 DB（只覆盖共享字段）
+function _applyStudentProfile(profile){
+  if(!profile)return false;
+  let changed=false;
+  const s=DB.student;
+  if(profile.boba!==undefined&&profile.boba!==s.boba){s.boba=profile.boba;changed=true;}
+  if(profile.bobaBreakdown){s.bobaBreakdown=profile.bobaBreakdown;changed=true;}
+  if(profile.bobaLog){s.bobaLog=profile.bobaLog;changed=true;}
+  if(profile.quizTotal!==undefined&&profile.quizTotal!==s.quizTotal){s.quizTotal=profile.quizTotal;changed=true;}
+  if(profile.quizLog){s.quizLog=profile.quizLog;changed=true;}
+  if(profile.quizToday!==undefined){s.quizToday=profile.quizToday;changed=true;}
+  if(profile.power!==undefined){s.power=profile.power;changed=true;}
+  if(profile.notes){s.notes=profile.notes;changed=true;}
+  if(profile.chapter!==undefined&&profile.chapter!==s.chapter){s.chapter=profile.chapter;changed=true;}
+  if(profile.avatar){s.avatar=profile.avatar;changed=true;}
+  if(profile.theme){s.theme=profile.theme;changed=true;}
+  if(profile.missionDate){DB._cloudHwDate=profile.missionDate;}
+  if(profile.missionSig){DB._cloudHwSig=profile.missionSig;}
+  if(profile.updatedAt){DB._lastCloudProfileTs=profile.updatedAt;}
+  return changed;
+}
+
+// ====== 老师端：把所有学生共享数据推送到云端 ======
+async function cloudPushStudent(silent){
+  try{
+    const cloud=await cloudFetch()||{homeworks:[],submissions:[]};
+    if(!cloud.homeworks)cloud.homeworks=[];
+    if(!cloud.submissions)cloud.submissions=[];
+    cloud.studentProfile=_buildStudentProfile();
+    _lastPushTs=Date.now();
+    const ok=await cloudSave(cloud);
+    if(ok&&!silent)toast('☁️ 已同步到云端');
+    else if(!ok&&!silent)toast('⚠️ 云端同步失败');
+    return ok;
+  }catch(e){console.error('cloudPushStudent',e);return false;}
+}
+
+// ====== 云端作业 / 提交 / 批改 ======
 async function cloudPublishHW(homework){
   const cloud=await cloudFetch()||{homeworks:[],submissions:[]};
   if(!cloud.homeworks)cloud.homeworks=[];
-  // 去重：同一天替换
   cloud.homeworks=cloud.homeworks.filter(h=>h.date!==homework.date);
   cloud.homeworks.push(homework);
+  // 发布时同时推送最新 studentProfile
+  cloud.studentProfile=_buildStudentProfile();
+  _lastPushTs=Date.now();
   const ok=await cloudSave(cloud);
   if(ok)toast('☁️ 作业已同步到云端，学生可见');
   else toast('⚠️ 云端同步失败，仅本地保存');
   return ok;
 }
 
-// 学生提交作业 → 上传到云端
 async function cloudSubmitHW(submission){
   const cloud=await cloudFetch()||{homeworks:[],submissions:[]};
   if(!cloud.submissions)cloud.submissions=[];
   cloud.submissions.push(submission);
-  // 只保留最近20条提交，避免Gist超限
-  if(cloud.submissions.length>20){
-    cloud.submissions=cloud.submissions.slice(-20);
-  }
+  if(cloud.submissions.length>20)cloud.submissions=cloud.submissions.slice(-20);
   const ok=await cloudSave(cloud);
   if(ok)toast('☁️ 作业已上传，老师可见');
   return ok;
 }
 
-// 老师批改 → 更新云端（同时确保 imgs 不丢失）
 async function cloudGradeHW(submission_dt,status,feedback,boba,localImgs){
   const cloud=await cloudFetch()||{homeworks:[],submissions:[]};
   if(!cloud.submissions)cloud.submissions=[];
   const sub=cloud.submissions.find(s=>s.dt===submission_dt);
   if(sub){
     sub.status=status;sub.feedback=feedback;sub.boba=boba;
-    // 云端 imgs 为空时，用本地 imgs 兜底，避免两端图片断档
     if(localImgs&&localImgs.length>0&&(!sub.imgs||sub.imgs.length===0)){
       sub.imgs=localImgs;sub.imgCount=localImgs.length;
     }
+    // 批改同时推送最新 studentProfile（积分/评语等）
+    cloud.studentProfile=_buildStudentProfile();
+    _lastPushTs=Date.now();
     await cloudSave(cloud);
   }
   return true;
 }
 
-// 合并云端 submission 到本地：云端有图用云端，否则保留本地图；批改状态以云端为主
 function mergeSubmission(local, cloud){
   if(!local)return {...cloud};
   const hasLocalImgs=local.imgs&&local.imgs.length>0;
@@ -722,73 +780,64 @@ function mergeSubmission(local, cloud){
   };
 }
 
-// 从云端拉取数据（学生端获取作业 / 老师端获取提交）
-async function cloudPull(){
+// ====== 从云端拉取所有数据（学生端/老师端通用） ======
+async function cloudPull(silent){
   if(_cloudSyncing)return;
   _cloudSyncing=true;
   try{
     const cloud=await cloudFetch();
     if(!cloud){_cloudSyncing=false;return;}
+    let changed=false;
 
-    // ---- 学生端：拉取老师发布的作业 ----
+    // 1) 拉取 studentProfile → 合并到本地（积分/笔记/章节等）
+    if(cloud.studentProfile){
+      const applied=_applyStudentProfile(cloud.studentProfile);
+      if(applied){changed=true;saveDB();}
+    }
+
+    // 2) 拉取老师发布的作业
     if(cloud.homeworks&&cloud.homeworks.length){
       const latest=cloud.homeworks[cloud.homeworks.length-1];
       if(latest&&latest.missions){
-        // 用"日期+题目数量"做签名，同一天重新布置题目数变了也能正确更新
         const sig=latest.date+'_'+(latest.missions.bronze?.length||0)+'-'+(latest.missions.silver?.length||0)+'-'+(latest.missions.gold?.length||0)+'_'+(latest.chapter||'');
-        const missionsNow=DB.student.missions;
-        const missionsNowSig='_'+(missionsNow.bronze?.length||0)+'-'+(missionsNow.silver?.length||0)+'-'+(missionsNow.gold?.length||0)+'_'+(DB.student.chapter||'');
-        const needUpdate = (!DB._cloudHwSig) || (DB._cloudHwSig !== sig) || (!missionsNow.bronze&&missionsNowSig!=='_0-0-0_');
+        const needUpdate = (!DB._cloudHwSig) || (DB._cloudHwSig !== sig);
         if(needUpdate){
-          DB._cloudHwSig=sig;
-          DB._cloudHwDate=latest.date;
+          DB._cloudHwSig=sig;DB._cloudHwDate=latest.date;
           DB.student.missions=latest.missions;
           DB.student.chapter=latest.chapter||DB.student.chapter;
-          saveDB();
-          toast('📥 收到老师新布置的作业！');
-          render();
+          changed=true;saveDB();
+          if(!silent)toast('📥 收到老师新布置的作业！');
         }
       }
     }
 
-    // ---- 老师端：拉取学生提交的作业 ----
+    // 3) 拉取学生提交的作业（老师端 & 学生端）
     if(cloud.submissions&&cloud.submissions.length){
-      let changed=false, newCount=0;
       cloud.submissions.forEach(sub=>{
-        // 1) 老师待批改列表 toGrade
+        // 老师待批改列表
         const tg=DB.teacher.toGrade.find(g=>g.dt===sub.dt);
-        if(!tg){
-          DB.teacher.toGrade.push(mergeSubmission(null, sub));
-          newCount++; changed=true;
-        }else{
+        if(!tg){DB.teacher.toGrade.push(mergeSubmission(null, sub));changed=true;}
+        else{
           const merged=mergeSubmission(tg, sub);
-          const keys=Object.keys(merged);
-          for(let k of keys){
-            if(JSON.stringify(tg[k])!==JSON.stringify(merged[k])){
-              tg[k]=merged[k]; changed=true;
-            }
+          for(let k of Object.keys(merged)){
+            if(JSON.stringify(tg[k])!==JSON.stringify(merged[k])){tg[k]=merged[k];changed=true;}
           }
         }
-        // 2) 学生端 homeworkSubs 本地列表（老师手机/同一台切学生账号也要看到）
+        // 学生 homeworkSubs
         const ss=DB.student.homeworkSubs.find(g=>g.dt===sub.dt);
-        if(!ss){ DB.student.homeworkSubs.push(mergeSubmission(null, sub)); changed=true; }
+        if(!ss){DB.student.homeworkSubs.push(mergeSubmission(null, sub));changed=true;}
         else{
           const merged=mergeSubmission(ss, sub);
           for(let k of Object.keys(merged)){
-            if(JSON.stringify(ss[k])!==JSON.stringify(merged[k])){
-              ss[k]=merged[k]; changed=true;
-            }
+            if(JSON.stringify(ss[k])!==JSON.stringify(merged[k])){ss[k]=merged[k];changed=true;}
           }
         }
-        // 3) 学生端 homeworkHistory 同步（pending 也先写进去，显示"待批改"）
+        // 学生 homeworkHistory（含 pending 和 graded）
         const hh=DB.student.homeworkHistory.find(h=>h.dt===sub.dt);
         if(!hh){
           DB.student.homeworkHistory.unshift({
-            dt:sub.dt,
-            status:sub.status||'pending',
-            comment:sub.feedback||'',
-            imgs: sub.imgs||[],
-            boba: sub.boba||0
+            dt:sub.dt, status:sub.status||'pending',
+            comment:sub.feedback||'', imgs: sub.imgs||[], boba: sub.boba||0
           });
           changed=true;
         }else{
@@ -797,45 +846,21 @@ async function cloudPull(){
           if((sub.imgs&&sub.imgs.length>0)&&(!hh.imgs||hh.imgs.length!==sub.imgs.length)){hh.imgs=sub.imgs;changed=true;}
           if(sub.boba!==undefined&&sub.boba!==hh.boba){hh.boba=sub.boba;changed=true;}
         }
-      });
-      if(changed)saveDB();
-      if(newCount>0){
-        toast('📥 收到'+newCount+'份新作业提交！');
-        render();
-      }else if(changed){
-        render();
-      }
-    }
-
-    // ---- 学生端：补充批改结果同步（boba 积分发放） ----
-    if(cloud.submissions&&cloud.submissions.length){
-      let changed=false;
-      cloud.submissions.forEach(sub=>{
+        // 批改积分发放（避免重复）
         if(sub.status==='graded'&&sub.boba){
-          // 仅当这条 submission 的 boba 还没给过（用 homeworkHistory 里没带 boba 或 boba 不同判断）
-          const hist=DB.student.homeworkHistory.find(h=>h.dt===sub.dt);
-          if(hist){
-            // 用一个标记位记录积分已给过，避免重复加
-            if(!DB._gradedRewarded)DB._gradedRewarded={};
-            if(!DB._gradedRewarded[sub.dt]){
-              addBoba(sub.boba,'作业批改','🌟');
-              DB._gradedRewarded[sub.dt]=true;
-              changed=true;
-            }
+          if(!DB._gradedRewarded)DB._gradedRewarded={};
+          if(!DB._gradedRewarded[sub.dt]){
+            addBoba(sub.boba,'作业批改','🌟');
+            DB._gradedRewarded[sub.dt]=true;
           }
         }
-        // 同步批改状态到 homeworkSubs（含 pending→graded）
-        const subLocal=DB.student.homeworkSubs.find(h=>h.dt===sub.dt);
-        if(subLocal){
-          if(sub.status!==undefined&&sub.status!==subLocal.status){subLocal.status=sub.status;changed=true;}
-          if(sub.feedback!==undefined&&sub.feedback!==subLocal.feedback){subLocal.feedback=sub.feedback;changed=true;}
-          if(sub.boba!==undefined&&sub.boba!==subLocal.boba){subLocal.boba=sub.boba;changed=true;}
-          if((sub.imgs&&sub.imgs.length>0)&&(!subLocal.imgs||subLocal.imgs.length!==sub.imgs.length)){subLocal.imgs=sub.imgs;changed=true;}
-        }
       });
-      if(changed){saveDB();render();}
+      if(changed)saveDB();
     }
+
     DB._lastCloudPullTs=Date.now();
+    if(changed)render();
+    else if(!silent){/* 静默模式不提示 */}
   }catch(e){console.error('cloudPull',e);}
   _cloudSyncing=false;
 }
@@ -969,6 +994,7 @@ const PAGES={};
 PAGES.home=function(){
   const s=DB.student;const t=DB.teacher.settings;
   const need=s.boba<t.exchangeTarget;
+  const lastTs=DB._lastCloudPullTs?new Date(DB._lastCloudPullTs).toTimeString().slice(0,5):'从未';
   return `
   <div class="tea-card" onclick="toast('🧋 课堂获得：${s.bobaBreakdown.class}颗 | 📝 作业获得：${s.bobaBreakdown.homework}颗 | 🎮 闯关换算：${s.bobaBreakdown.quiz}颗')">
     <div class="tt"><span>🧋 我的奶茶杯</span><span class="text-sm">🌸 勇气棉花糖：${s.marshmallows}颗</span></div>
@@ -976,6 +1002,8 @@ PAGES.home=function(){
     <div class="bar"><span style="width:${Math.min(100,s.boba/t.exchangeTarget*100)}%"></span></div>
     <div class="hint">${need?`还差${t.exchangeTarget-s.boba}颗芋泥球就能兑换奶茶啦！💪`:'🎉 恭喜！可以兑换一杯奶茶啦！'}</div>
   </div>
+  <button class="btn btn-accent btn-block" style="margin-bottom:12px" onclick="manualSync()">🔄 立即同步云端数据</button>
+  <div class="text-xs muted" style="text-align:center;margin-bottom:12px;">上次同步：${lastTs} · 每5秒自动同步</div>
   <div class="card">
     <div class="snap">
       <div class="item"><div class="num">${s.quizToday}/${s.quizCap}</div><div class="lbl">⭐ 今日闯关积分</div></div>
@@ -1003,6 +1031,40 @@ PAGES.home=function(){
 };
 function toggleTask(i){
   DB.student.dailyTasks[i].done=!DB.student.dailyTasks[i].done;saveDB();render();
+}
+// 手动同步：先拉后推（老师端），或只拉（学生端）
+async function manualSync(){
+  toast('🔄 正在同步...');
+  // 拉取最新云端
+  await cloudPull(false);
+  // 如果是老师端，同时推送本地最新数据到云端
+  if(DB.teacher.loggedIn){
+    await cloudPushStudent(true);
+    // 如果有未保存的提交/批改数据，也推送
+    const cloud=await cloudFetch();
+    if(cloud){
+      let changed=false;
+      if(DB.teacher.toGrade.length){
+        cloud.submissions=cloud.submissions||[];
+        DB.teacher.toGrade.forEach(tg=>{
+          const exist=cloud.submissions.find(s=>s.dt===tg.dt);
+          if(exist){
+            exist.status=tg.status;exist.feedback=tg.feedback||'';exist.boba=tg.boba||0;
+            if(tg.imgs&&tg.imgs.length){exist.imgs=tg.imgs;}
+          }else{
+            cloud.submissions.push({dt:tg.dt,status:tg.status,feedback:tg.feedback||'',boba:tg.boba||0,imgs:tg.imgs||[]});
+          }
+          changed=true;
+        });
+      }
+      if(changed){
+        cloud.studentProfile=_buildStudentProfile();
+        await cloudSave(cloud);
+      }
+    }
+  }
+  toast('✅ 同步完成');
+  render();
 }
 
 /* ---- 6.2 MISSIONS ---- */
@@ -1465,6 +1527,7 @@ function tAddBoba(sign){
   if(sign<0){DB.student.boba=Math.max(0,DB.student.boba-v);DB.student.bobaLog.unshift({v:-v,dt:todayStr()+' '+new Date().toTimeString().slice(0,5),src,tag:'➖'});}
   else addBoba(v,src,sign>0?'✅':'➖');
   recomputePower();saveDB();toast('✅ 已更新');render();
+  cloudPushStudent();
 }
 function tAddQuiz(sign){
   const v=parseFloat(document.getElementById('qv').value);if(!v){toast('请输入分值');return;}
@@ -1472,6 +1535,7 @@ function tAddQuiz(sign){
   if(sign>0){DB.student.quizTotal+=v;DB.student.quizLog.unshift({v,dt:todayStr()+' '+new Date().toTimeString().slice(0,5),src,tag:'🎮'});}
   else{DB.student.quizTotal=Math.max(0,DB.student.quizTotal-v);DB.student.quizLog.unshift({v:-v,dt:todayStr()+' '+new Date().toTimeString().slice(0,5),src,tag:'➖'});}
   recomputePower();saveDB();toast('✅ 已更新');render();
+  cloudPushStudent();
 }
 
 const CHAPTER_KPS={
@@ -1565,7 +1629,7 @@ function aiGenerate(){
   toast('✅ 题目生成完成！');
 }
 
-function publishHW(){
+async function publishHW(){
   if(!_generatedHW){toast('请先生成题目');return;}
   const ch=document.getElementById('achapter').value;
   const hwDate=document.getElementById('adate').value||new Date().toISOString().slice(0,10);
@@ -1576,7 +1640,7 @@ function publishHW(){
   DB.student.missions.gold=_generatedHW.high.map(q=>({done:false,src:'[AI生成·'+q.kp+']',q:q.q+'<br><small class="muted">'+q.opts.map((o,j)=>String.fromCharCode(65+j)+'. '+o).join(' ')+'</small>',kp:q.kp,ans:String.fromCharCode(65+q.ans),parsing:q.parsing}));
   saveDB();
   // 上传到云端，让学生端也能收到
-  cloudPublishHW({
+  await cloudPublishHW({
     date:hwDate,
     chapter:ch,
     missions:JSON.parse(JSON.stringify(DB.student.missions))
@@ -1819,9 +1883,9 @@ function init(){
   window.addEventListener('storage',function(ev){
     if(ev.key===KEY)_onSyncMessage();
   });
-  // cloud sync: poll server every 10s for cross-device data
-  cloudPull();
-  setInterval(cloudPull,10000);
+  // cloud sync: 启动立即全量拉取 + 每 5s 轮询，确保跨设备同步
+  cloudPull(false);
+  setInterval(()=>{ cloudPull(true); }, 5000);
 }
 init();
 // Register Service Worker for PWA (网络优先缓存策略，确保永远拿到最新代码)
