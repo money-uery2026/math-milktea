@@ -2,8 +2,8 @@
   "name": "🌟 小星球的数学奶茶屋",
   "short_name": "数学奶茶屋",
   "description": "小学数学老师与学生的互动学习工具",
-  "start_url": "./",
-  "scope": "./",
+  "start_url": "https://money-uery2026.github.io/math-milktea/",
+  "scope": "https://money-uery2026.github.io/math-milktea/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#F5F0EB",
@@ -11,13 +11,13 @@
   "lang": "zh-CN",
   "icons": [
     {
-      "src": "./icon-192.png",
+      "src": "https://money-uery2026.github.io/math-milktea/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "./icon-512.png",
+      "src": "https://money-uery2026.github.io/math-milktea/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
