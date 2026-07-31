@@ -784,13 +784,20 @@ function mergeSubmission(local, cloud){
 async function cloudPull(silent){
   if(_cloudSyncing)return;
   _cloudSyncing=true;
+  // 超时保护：8秒后强制释放，防止死锁
+  const _timeout=setTimeout(()=>{_cloudSyncing=false;},8000);
   try{
     const cloud=await cloudFetch();
-    if(!cloud){_cloudSyncing=false;return;}
+    if(!cloud){clearTimeout(_timeout);_cloudSyncing=false;return;}
     let changed=false;
+    let hasNewMsg=false;
 
     // 1) 拉取 studentProfile → 合并到本地（积分/笔记/章节等）
     if(cloud.studentProfile){
+      // 检测笔记是否有变化（新消息）
+      if(cloud.studentProfile.notes&&DB.student.notes){
+        if(cloud.studentProfile.notes.length>DB.student.notes.length) hasNewMsg=true;
+      }
       const applied=_applyStudentProfile(cloud.studentProfile);
       if(applied){changed=true;saveDB();}
     }
@@ -813,17 +820,16 @@ async function cloudPull(silent){
 
     // 3) 拉取学生提交的作业（老师端 & 学生端）
     if(cloud.submissions&&cloud.submissions.length){
+      let newSubCount=0;
       cloud.submissions.forEach(sub=>{
-        // 老师待批改列表
         const tg=DB.teacher.toGrade.find(g=>g.dt===sub.dt);
-        if(!tg){DB.teacher.toGrade.push(mergeSubmission(null, sub));changed=true;}
+        if(!tg){DB.teacher.toGrade.push(mergeSubmission(null, sub));changed=true;newSubCount++;}
         else{
           const merged=mergeSubmission(tg, sub);
           for(let k of Object.keys(merged)){
             if(JSON.stringify(tg[k])!==JSON.stringify(merged[k])){tg[k]=merged[k];changed=true;}
           }
         }
-        // 学生 homeworkSubs
         const ss=DB.student.homeworkSubs.find(g=>g.dt===sub.dt);
         if(!ss){DB.student.homeworkSubs.push(mergeSubmission(null, sub));changed=true;}
         else{
@@ -832,7 +838,6 @@ async function cloudPull(silent){
             if(JSON.stringify(ss[k])!==JSON.stringify(merged[k])){ss[k]=merged[k];changed=true;}
           }
         }
-        // 学生 homeworkHistory（含 pending 和 graded）
         const hh=DB.student.homeworkHistory.find(h=>h.dt===sub.dt);
         if(!hh){
           DB.student.homeworkHistory.unshift({
@@ -846,7 +851,6 @@ async function cloudPull(silent){
           if((sub.imgs&&sub.imgs.length>0)&&(!hh.imgs||hh.imgs.length!==sub.imgs.length)){hh.imgs=sub.imgs;changed=true;}
           if(sub.boba!==undefined&&sub.boba!==hh.boba){hh.boba=sub.boba;changed=true;}
         }
-        // 批改积分发放（避免重复）
         if(sub.status==='graded'&&sub.boba){
           if(!DB._gradedRewarded)DB._gradedRewarded={};
           if(!DB._gradedRewarded[sub.dt]){
@@ -856,12 +860,22 @@ async function cloudPull(silent){
         }
       });
       if(changed)saveDB();
+      if(newSubCount>0&&!silent)toast('📥 收到'+newSubCount+'份新作业提交！');
     }
 
     DB._lastCloudPullTs=Date.now();
-    if(changed)render();
-    else if(!silent){/* 静默模式不提示 */}
+    // 关键：静默模式不 render（避免闪烁），只弹轻量 toast 提示
+    if(changed){
+      if(silent){
+        // 静默模式：只提示，不刷新页面
+        if(hasNewMsg)toast('📩 收到新消息，点击查看');
+        else toast('📥 数据已更新');
+      }else{
+        render(); // 手动同步才刷新页面
+      }
+    }
   }catch(e){console.error('cloudPull',e);}
+  clearTimeout(_timeout);
   _cloudSyncing=false;
 }
 
@@ -1099,6 +1113,7 @@ function renderLayer(title,bg,layer,collapsed){
 }
 function toggleMission(layer,i){
   DB.student.missions[layer][i].done=!DB.student.missions[layer][i].done;saveDB();render();
+  cloudPushStudent(true); // 同步任务完成状态到云端
 }
 
 /* ---- 6.3 HOMEWORK ---- */
@@ -1253,6 +1268,7 @@ function answerQuiz(i){
   setTimeout(()=>{
     st.idx++;st.answered=false;
     saveDB(); // 每题做完都保存闯关进度
+    cloudPushStudent(true); // 同步闯关进度到云端
     if(st.idx>=st.qs.length){
       const lvl=DB.student.quizLevels.find(l=>l.id===st.levelId);
       const bonus=lvl?lvl.reward:0;
@@ -1262,7 +1278,7 @@ function answerQuiz(i){
       // unlock next
       const cur=DB.student.quizLevels.find(l=>l.id===st.levelId);
       if(cur){const next=DB.student.quizLevels.find(l=>l.id===st.levelId+1);if(next)next.locked=false;}
-      saveDB();render();
+      saveDB();cloudPushStudent(true);render();
     }else render();
   },1800);
 }
@@ -1300,6 +1316,7 @@ function sendNote(){
   if(!v)return;
   DB.student.notes.push({me:true,text:v,t:todayStr()+' '+new Date().toTimeString().slice(0,5)});
   saveDB();render();
+  cloudPushStudent(true); // 同步到云端，老师端可见
   setTimeout(()=>{document.getElementById('chatbox').scrollTop=9999;},100);
 }
 
@@ -1671,6 +1688,7 @@ function sendReply(i){
   const v=document.getElementById('replytext').value.trim();if(!v)return;
   DB.student.notes.push({me:false,text:v,t:todayStr()+' '+new Date().toTimeString().slice(0,5)});
   DB.teacher.notesUnread=0;saveDB();closeModal();toast('✅ 已回复');render();
+  cloudPushStudent(true); // 同步到云端，学生端可见
 }
 
 PAGES.tquiz=function(){
@@ -1883,9 +1901,9 @@ function init(){
   window.addEventListener('storage',function(ev){
     if(ev.key===KEY)_onSyncMessage();
   });
-  // cloud sync: 启动立即全量拉取 + 每 5s 轮询，确保跨设备同步
+  // cloud sync: 启动立即全量拉取 + 每 8s 静默轮询，检测到变化只提示不闪烁
   cloudPull(false);
-  setInterval(()=>{ cloudPull(true); }, 5000);
+  setInterval(()=>{ cloudPull(true); }, 8000);
 }
 init();
 // Register Service Worker for PWA (网络优先缓存策略，确保永远拿到最新代码)
