@@ -1,5 +1,5 @@
-// Service Worker for 小星球的数学奶茶屋 (v9)
-const CACHE_NAME = 'mathmilktea-v9';
+// Service Worker for 小星球的数学奶茶屋 (v10)
+const CACHE_NAME = 'mathmilktea-v10';
 const ASSETS = [
   './',
   './index.html',

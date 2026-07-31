@@ -727,6 +727,17 @@ async function cloudPushStudent(silent){
   }catch(e){console.error('cloudPushStudent',e);return false;}
 }
 
+// 老师端写完后，触发一次延迟拉取确认（绕过 Gist API 缓存）
+// 这样对面设备下次轮询时能更快拿到最新数据
+async function cloudPushAndConfirm(silent){
+  const ok=await cloudPushStudent(silent);
+  if(ok){
+    // 1.5 秒后重新拉取确认写入成功，同时更新本地时间戳
+    setTimeout(()=>{ cloudPull(true); }, 1500);
+  }
+  return ok;
+}
+
 // ====== 云端作业 / 提交 / 批改 ======
 async function cloudPublishHW(homework){
   const cloud=await cloudFetch()||{homeworks:[],submissions:[]};
@@ -1016,8 +1027,8 @@ PAGES.home=function(){
     <div class="bar"><span style="width:${Math.min(100,s.boba/t.exchangeTarget*100)}%"></span></div>
     <div class="hint">${need?`还差${t.exchangeTarget-s.boba}颗芋泥球就能兑换奶茶啦！💪`:'🎉 恭喜！可以兑换一杯奶茶啦！'}</div>
   </div>
-  <button class="btn btn-accent btn-block" style="margin-bottom:12px" onclick="manualSync()">🔄 立即同步云端数据</button>
-  <div class="text-xs muted" style="text-align:center;margin-bottom:12px;">上次同步：${lastTs} · 每5秒自动同步</div>
+  <button class="btn btn-accent btn-block" style="margin-bottom:8px" onclick="manualSync()">🔄 立即同步云端数据</button>
+  <div class="text-xs muted" style="text-align:center;margin-bottom:12px;">上次同步：${lastTs} · 切回APP自动同步</div>
   <div class="card">
     <div class="snap">
       <div class="item"><div class="num">${s.quizToday}/${s.quizCap}</div><div class="lbl">⭐ 今日闯关积分</div></div>
@@ -1048,13 +1059,15 @@ function toggleTask(i){
 }
 // 手动同步：先拉后推（老师端），或只拉（学生端）
 async function manualSync(){
+  const btn=event&&event.target?event.target:null;
+  const oldText=btn?btn.textContent:'';
+  if(btn)btn.textContent='🔄 同步中...';
   toast('🔄 正在同步...');
   // 拉取最新云端
   await cloudPull(false);
   // 如果是老师端，同时推送本地最新数据到云端
   if(DB.teacher.loggedIn){
     await cloudPushStudent(true);
-    // 如果有未保存的提交/批改数据，也推送
     const cloud=await cloudFetch();
     if(cloud){
       let changed=false;
@@ -1076,8 +1089,12 @@ async function manualSync(){
         await cloudSave(cloud);
       }
     }
+    // 写入后等 1.5 秒再拉一次，绕过 Gist API 缓存延迟
+    await new Promise(r=>setTimeout(r,1500));
+    await cloudPull(false);
   }
   toast('✅ 同步完成');
+  if(btn)btn.textContent=oldText;
   render();
 }
 
@@ -1901,9 +1918,19 @@ function init(){
   window.addEventListener('storage',function(ev){
     if(ev.key===KEY)_onSyncMessage();
   });
-  // cloud sync: 启动立即全量拉取 + 每 8s 静默轮询，检测到变化只提示不闪烁
+  // cloud sync: 启动立即全量拉取 + 每 5s 静默轮询（不闪烁）+ 页面获得焦点立即同步
   cloudPull(false);
-  setInterval(()=>{ cloudPull(true); }, 8000);
+  setInterval(()=>{ cloudPull(true); }, 5000);
+  // 关键：用户切回 App 时立即同步（不用手动刷新）
+  document.addEventListener('visibilitychange',function(){
+    if(document.visibilityState==='visible'){
+      cloudPull(true);
+    }
+  });
+  // 窗口获得焦点也触发同步
+  window.addEventListener('focus',function(){
+    cloudPull(true);
+  });
 }
 init();
 // Register Service Worker for PWA (网络优先缓存策略，确保永远拿到最新代码)
