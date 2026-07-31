@@ -1,0 +1,1724 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="数学奶茶屋">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#C9B1D0">
+<meta name="description" content="小星球的数学奶茶屋 - 学生和老师的互动学习平台">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23C9B1D0'/><text x='50' y='65' font-size='60' text-anchor='middle' fill='white'>🧋</text></svg>">
+<title>🌟 小星球的数学奶茶屋</title>
+<style>
+:root{
+  --bg:#F5F0EB;--card:#FFFFFF;--main:#C9B1D0;--main-d:#B89EC4;
+  --accent:#FFB7A1;--yellow:#FFE4B5;--text:#4A3A4A;--text-sub:#8A7A8A;
+  --shadow:0 2px 12px rgba(0,0,0,0.08);--r:16px;--rc:20px;--rb:25px;
+  --green:#A8D8B9;--green-bg:#E8F5EC;--purple-bg:#EFE6F2;--gold-bg:#FFF4DC;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;
+  background:var(--bg);color:var(--text);font-size:15px;line-height:1.5;
+  -webkit-font-smoothing:antialiased;overflow-x:hidden;
+  padding-top:env(safe-area-inset-top);
+  padding-bottom:env(safe-area-inset-bottom);
+  padding-left:env(safe-area-inset-left);
+  padding-right:env(safe-area-inset-right);
+}
+#app{max-width:420px;margin:0 auto;min-height:100vh;min-height:100dvh;position:relative;background:var(--bg);}
+/* PWA standalone mode - remove browser chrome */
+@media all and (display-mode: standalone), (display-mode: fullscreen) {
+  body { padding-top: 0; padding-bottom: 0; }
+  #app { min-height: 100vh; }
+}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+input,textarea,select{font-family:inherit;font-size:15px;outline:none;}
+.icon{width:22px;height:22px;flex-shrink:0;display:inline-block;vertical-align:middle;}
+.icon-sm{width:18px;height:18px;}
+.icon-lg{width:28px;height:28px;}
+
+/* Top bar */
+.topbar{
+  position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;
+  padding:12px 14px;background:rgba(245,240,235,0.92);backdrop-filter:blur(8px);
+  border-bottom:1px solid rgba(201,177,208,0.2);
+}
+.topbar .title{font-weight:700;font-size:16px;color:var(--text);flex:1;text-align:center;padding:0 8px;}
+.topbar .date{font-size:12px;color:var(--text-sub);}
+.menu-btn{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;}
+.menu-btn:active{background:rgba(201,177,208,0.2);}
+
+/* Sidebar */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;opacity:0;visibility:hidden;transition:all .3s;}
+.overlay.open{opacity:1;visibility:visible;}
+.sidebar{
+  position:fixed;top:0;left:0;bottom:0;width:85%;max-width:300px;background:#fff;z-index:201;
+  transform:translateX(-100%);transition:transform .3s cubic-bezier(.4,0,.2,1);
+  display:flex;flex-direction:column;box-shadow:4px 0 24px rgba(0,0,0,0.12);
+}
+.sidebar.open{transform:translateX(0);}
+.sidebar-head{padding:24px 20px 18px;background:linear-gradient(135deg,var(--main),var(--main-d));color:#fff;}
+.sidebar-head .avatar{width:54px;height:54px;border-radius:50%;background:rgba(255,255,255,0.3);
+  display:flex;align-items:center;justify-content:center;margin-bottom:10px;}
+.sidebar-head .avatar svg{width:34px;height:34px;}
+.sidebar-head .name{font-size:18px;font-weight:700;}
+.sidebar-head .sub{font-size:12px;opacity:0.92;margin-top:3px;}
+.sidebar-body{flex:1;overflow-y:auto;padding:12px 0;}
+.menu-section{padding:8px 0;}
+.menu-section-title{font-size:11px;color:var(--text-sub);padding:8px 22px 4px;font-weight:600;letter-spacing:1px;}
+.menu-item{display:flex;align-items:center;gap:12px;padding:11px 22px;font-size:14px;color:var(--text);transition:all .15s;}
+.menu-item:active{background:rgba(201,177,208,0.12);}
+.menu-item.active{background:var(--main);color:#fff;font-weight:600;}
+.menu-item.active svg{stroke:#fff;}
+.sidebar-foot{padding:14px 22px;font-size:11px;color:var(--text-sub);border-top:1px solid #f0eaef;}
+
+/* Page container */
+.page{display:none;padding:12px;padding-bottom:30px;animation:fadeIn .25s;}
+.page.active{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+
+/* Card */
+.card{background:var(--card);border-radius:var(--rc);padding:16px;box-shadow:var(--shadow);margin-bottom:12px;}
+.card-title{font-size:14px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.section-label{font-size:12px;color:var(--text-sub);margin:14px 4px 8px;font-weight:600;}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:12px 20px;border-radius:var(--rb);
+  font-size:15px;font-weight:600;transition:transform .12s;}
+.btn:active{transform:scale(0.96);}
+.btn-main{background:var(--main);color:#fff;}
+.btn-main:active{background:var(--main-d);}
+.btn-accent{background:var(--accent);color:#fff;}
+.btn-block{width:100%;}
+.btn-outline{border:1.5px solid var(--main);color:var(--main);background:#fff;}
+.btn-sm{padding:7px 14px;font-size:13px;}
+
+/* Grid */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+
+/* Progress bar */
+.bar{height:10px;background:#EFE7EE;border-radius:6px;overflow:hidden;}
+.bar>span{display:block;height:100%;background:linear-gradient(90deg,var(--main),var(--accent));border-radius:6px;transition:width .5s;}
+
+/* Tea cup card */
+.tea-card{background:linear-gradient(135deg,var(--main) 0%,var(--yellow) 100%);color:#fff;border-radius:var(--rc);
+  padding:18px;box-shadow:var(--shadow);margin-bottom:12px;}
+.tea-card .tt{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-weight:700;font-size:16px;}
+.tea-card .prog{font-size:22px;font-weight:800;margin:8px 0 6px;}
+.tea-card .hint{font-size:12px;opacity:0.95;}
+.tea-card .marsh{margin-top:10px;font-size:13px;background:rgba(255,255,255,0.22);padding:6px 10px;border-radius:10px;display:inline-block;}
+.tea-card .bar{background:rgba(255,255,255,0.35);}
+
+/* Snapshot */
+.snap{display:flex;gap:12px;}
+.snap .item{flex:1;text-align:center;background:var(--purple-bg);border-radius:14px;padding:12px 8px;}
+.snap .item .num{font-size:18px;font-weight:700;color:var(--main-d);}
+.snap .item .lbl{font-size:11px;color:var(--text-sub);margin-top:3px;}
+
+/* Feature cards grid */
+.feat{display:flex;flex-direction:column;align-items:center;gap:8px;padding:18px 8px;background:#fff;border-radius:var(--rc);box-shadow:var(--shadow);font-size:13px;font-weight:600;}
+.feat:active{transform:scale(0.97);}
+.feat .ic{width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;}
+.feat .ic svg{width:26px;height:26px;}
+
+/* Task list */
+.task{display:flex;align-items:flex-start;gap:10px;padding:10px;background:#fff;border-radius:12px;margin-bottom:8px;box-shadow:var(--shadow);}
+.cbx{width:22px;height:22px;border:2px solid var(--main);border-radius:6px;flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.cbx.done{background:var(--main);border-color:var(--main);}
+.cbx.done svg{display:block;}
+.cbx svg{display:none;width:14px;height:14px;}
+.task.done .txt{text-decoration:line-through;color:var(--text-sub);}
+
+/* Missions */
+.layer{border-radius:var(--rc);overflow:hidden;margin-bottom:12px;}
+.layer-head{padding:12px 14px;font-weight:700;font-size:14px;display:flex;justify-content:space-between;align-items:center;}
+.layer-body{padding:8px 10px 12px;}
+.q{background:rgba(255,255,255,0.7);border-radius:10px;padding:10px;margin-bottom:8px;}
+.q .qhead{display:flex;gap:8px;align-items:flex-start;margin-bottom:6px;}
+.q .src{font-size:11px;color:var(--text-sub);}
+.q .kp{font-size:11px;color:var(--main-d);font-weight:600;}
+.q .ct{font-size:13px;}
+.collapse{cursor:pointer;}
+
+/* Toast */
+#toast{position:fixed;top:0;left:50%;transform:translate(-50%,-100%);background:rgba(74,58,74,0.95);color:#fff;
+  padding:12px 22px;border-radius:0 0 16px 16px;z-index:500;font-size:14px;max-width:420px;width:100%;
+  text-align:center;transition:transform .3s;box-shadow:0 4px 16px rgba(0,0,0,0.2);}
+#toast.show{transform:translate(-50%,0);}
+
+/* Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:400;display:none;align-items:center;justify-content:center;padding:24px;}
+.modal-bg.open{display:flex;}
+.modal{background:#fff;border-radius:var(--rc);padding:22px;width:100%;max-width:320px;}
+.modal h3{font-size:17px;margin-bottom:14px;text-align:center;}
+.input{width:100%;padding:12px 14px;border:1.5px solid #E8E0E8;border-radius:12px;font-size:15px;margin-bottom:10px;background:#FAF8FA;}
+.input:focus{border-color:var(--main);}
+
+/* Upload */
+.upload{border:2px dashed var(--main);border-radius:14px;height:160px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:8px;color:var(--main-d);background:var(--purple-bg);}
+.thumbs{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+.thumb{position:relative;width:72px;height:72px;border-radius:10px;overflow:hidden;background:#f0f0f0;}
+.thumb img{width:100%;height:100%;object-fit:cover;}
+.thumb .del{position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,0.5);color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;}
+
+/* Quiz */
+.opt{background:#fff;border:1.5px solid #E8E0E8;border-radius:12px;padding:12px;margin-bottom:8px;display:flex;gap:10px;align-items:center;transition:all .15s;}
+.opt:active{transform:scale(0.98);}
+.opt.correct{background:#E8F5EC;border-color:var(--green);}
+.opt.wrong{background:#FDECEC;border-color:#F5A0A0;}
+.opt.sel{border-color:var(--main);background:var(--purple-bg);}
+.opt .letter{width:26px;height:26px;border-radius:50%;background:var(--purple-bg);color:var(--main-d);font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;}
+
+/* Levels */
+.lvl{background:#fff;border-radius:var(--rc);padding:14px;margin-bottom:10px;box-shadow:var(--shadow);display:flex;justify-content:space-between;align-items:center;}
+.lvl.locked{opacity:0.55;}
+.lvl .info .ln{font-weight:700;font-size:14px;}
+.lvl .info .ld{font-size:11px;color:var(--text-sub);margin-top:3px;}
+.lvl .reward{background:var(--gold-bg);color:#B8860B;padding:5px 10px;border-radius:10px;font-size:12px;font-weight:600;}
+.lvl .lock-ic{width:28px;height:28px;}
+
+/* Badges */
+.badge{display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 6px;background:#fff;border-radius:14px;box-shadow:var(--shadow);}
+.badge .bi{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;}
+.badge.locked .bi{filter:grayscale(1);opacity:0.4;background:#f0f0f0;}
+.badge .bn{font-size:11px;text-align:center;font-weight:600;}
+.badge .bd{font-size:10px;color:var(--text-sub);}
+
+/* Chat */
+.chat{padding:6px 0 90px;}
+.msg{max-width:75%;padding:10px 13px;border-radius:14px;margin-bottom:10px;font-size:14px;word-break:break-word;}
+.msg.me{margin-left:auto;background:var(--main);color:#fff;border-bottom-right-radius:4px;}
+.msg.t{margin-right:auto;background:#F0F0F0;color:var(--text);border-bottom-left-radius:4px;}
+.msg .t{font-size:10px;opacity:0.7;margin-top:4px;display:block;}
+.chat-input{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:420px;
+  background:#fff;padding:10px 12px;display:flex;gap:8px;border-top:1px solid #eee;z-index:50;}
+.chat-input textarea{flex:1;border:1.5px solid #E8E0E8;border-radius:20px;padding:10px 14px;resize:none;height:44px;max-height:80px;}
+
+/* Bars chart */
+.kbar{margin-bottom:12px;}
+.kbar .kl{display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;}
+.kbar .bar{height:12px;}
+
+/* Tab */
+.tabs{display:flex;background:#fff;border-radius:14px;padding:4px;margin-bottom:12px;box-shadow:var(--shadow);}
+.tab{flex:1;text-align:center;padding:9px;font-size:13px;border-radius:10px;font-weight:600;color:var(--text-sub);}
+.tab.active{background:var(--main);color:#fff;}
+
+/* Log */
+.log{display:flex;justify-content:space-between;align-items:center;padding:11px 12px;background:#fff;border-radius:12px;margin-bottom:8px;box-shadow:var(--shadow);}
+.log .lt{font-size:12px;color:var(--text-sub);margin-top:2px;}
+.log .lv{font-weight:700;font-size:15px;}
+.log .lv.plus{color:var(--main-d);}
+.log .lv.minus{color:#D08A8A;}
+
+/* Confetti */
+#confetti{position:fixed;inset:0;pointer-events:none;z-index:600;overflow:hidden;}
+
+/* Float anim */
+@keyframes pop{0%{transform:scale(0.5);opacity:0;}60%{transform:scale(1.15);}100%{transform:scale(1);opacity:1;}}
+.pop{animation:pop .35s;}
+
+/* Plus float */
+@keyframes floatup{0%{transform:translateY(0);opacity:1;}100%{transform:translateY(-50px);opacity:0;}}
+.float-num{position:fixed;z-index:550;font-weight:800;font-size:20px;color:var(--accent);pointer-events:none;animation:floatup 1s forwards;}
+
+.muted{color:var(--text-sub);}
+.text-sm{font-size:13px;}
+.text-xs{font-size:11px;}
+.flex{display:flex;}
+.between{justify-content:space-between;}
+.center{align-items:center;}
+.gap{gap:8px;}
+.mt{margin-top:10px;}
+.mb{margin-bottom:10px;}
+.right{text-align:right;}
+.purple-text{color:var(--main-d);}
+.tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:8px;background:var(--purple-bg);color:var(--main-d);font-weight:600;}
+.tag-green{background:var(--green-bg);color:#5A9A6E;}
+.tag-yellow{background:var(--gold-bg);color:#B8860B;}
+.divider{height:1px;background:#eee;margin:12px 0;}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- Top bar -->
+  <div class="topbar">
+    <button class="menu-btn" onclick="toggleSidebar(true)">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="var(--text)" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+    </button>
+    <div class="title" id="pageTitle">🌟 小星球的数学奶茶屋</div>
+    <div class="date" id="topDate"></div>
+    <button class="menu-btn" onclick="refreshFromStorage()" title="刷新同步">
+      <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="var(--text-sub)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+    </button>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="overlay" id="overlay" onclick="toggleSidebar(false)"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-head">
+      <div class="avatar">
+        <svg viewBox="0 0 24 24" fill="#fff"><circle cx="12" cy="8" r="4"/><path d="M12 14c-4 0-8 2-8 6v2h16v-2c0-4-4-6-8-6z"/></svg>
+      </div>
+      <div class="name">彦材</div>
+      <div class="sub" id="sbSub">初三 · 战力值 78</div>
+    </div>
+    <div class="sidebar-body" id="sbBody"></div>
+    <div class="sidebar-foot">v1.0 · 数据本地存储</div>
+  </aside>
+
+  <!-- Pages container -->
+  <main id="main"></main>
+
+  <!-- Toast -->
+  <div id="toast"></div>
+
+  <!-- Modal root -->
+  <div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()">
+    <div class="modal" id="modalContent"></div>
+  </div>
+
+  <!-- Confetti canvas -->
+  <canvas id="confetti"></canvas>
+</div>
+
+<script>
+/* ============ SVG ICONS ============ */
+const SVG={
+  home:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg>',
+  task:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
+  game:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="11" rx="4"/><path d="M7 12v3M5.5 13.5h3M15 12h.01M18 14h.01"/></svg>',
+  chart:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 5-6"/></svg>',
+  note:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8z"/></svg>',
+  trophy:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22M18 2H6v7a6 6 0 0 0 12 0z"/></svg>',
+  star:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></svg>',
+  coin:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15 9.5a3 3 0 0 0-3-1.5c-1.66 0-3 1-3 2.5s1.34 2.5 3 2.5 3 1 3 2.5-1.34 2.5-3 2.5a3 3 0 0 1-3-1.5M12 6.5v11"/></svg>',
+  lock:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
+  phone:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></svg>',
+  upload:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5M12 3v12"/></svg>',
+  settings:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+  edit:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>',
+  trash:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>',
+  camera:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
+  send:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg>',
+  back:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>',
+  book:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
+  clock:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>',
+  heart:'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>',
+};
+
+/* ============ DATA MODEL ============ */
+const CHAPTERS=[
+  '第25章 一元二次方程','第26章 二次函数','第27章 反比例函数',
+  '第28章 旋转','第29章 圆','第30章 直线与圆的位置关系'
+];
+
+/* ============ AI QUESTION TEMPLATES ============ */
+function ri(a,b){return Math.floor(Math.random()*(b-a+1))+a;}
+function rp(arr){return arr[Math.floor(Math.random()*arr.length)];}
+function shuffle(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+/* 题目生成器：每个返回 {q,opts,ans,parsing,kp,diff} */
+const QG={
+  /* 第25章 一元二次方程 */
+  '第25章 一元二次方程':{
+    '直接开平方法':[
+      function g1(){
+        const a=ri(2,12),b=ri(2,9);
+        const q=`方程 x²-${a}=0 的解是（ ）`;
+        const ans=`x=±${Math.sqrt(a)|0===Math.sqrt(a)?Math.sqrt(a):'√'+a}`;
+        const wrong=[`x=${a}`,`x=±${a}`,`x=${a/2|0}`];
+        const opts=shuffle([ans,...wrong.slice(0,3)]);
+        return {q,opts,ans:opts.indexOf(ans),parsing:`移项得 x²=${a}，开平方得 x=±${Math.sqrt(a)|0===Math.sqrt(a)?Math.sqrt(a):'√'+a}`,kp:'直接开平方法',diff:'基础'};
+      },
+      function g2(){
+        const a=ri(2,5),b=ri(1,5);
+        const c=a*a*b;
+        const q=`方程 (x-${a})²=${c} 的解是（ ）`;
+        const r=Math.sqrt(c);
+        const x1=a+r,x2=a-r;
+        const ans=`x₁=${x1}, x₂=${x2}`;
+        const wrong=[`x₁=${a+r+1}, x₂=${a-r}`,`x₁=${a+r}, x₂=${a-r-1}`,`x₁=${x1+x2}, x₂=0`];
+        const opts=shuffle([ans,...wrong.slice(0,3)]);
+        return {q,opts,ans:opts.indexOf(ans),parsing:`直接开平方得 x-${a}=±${r}，故 x=${a}±${r}，即 x₁=${x1}, x₂=${x2}`,kp:'直接开平方法',diff:'基础'};
+      }
+    ],
+    '配方法':[
+      function g1(){
+        const a=ri(2,8),b=ri(1,9);
+        const c=(a/2)*(a/2)-b;
+        const half=a/2;
+        const q=`用配方法解方程 x²-${a}x+${b}=0，配方后应为（ ）`;
+        const ans=`(x-${half})²=${c}`;
+        const wrong=[`(x-${half})²=${c+1}`,`(x-${a})²=${c}`,`(x-${half+1})²=${c}`];
+        const opts=shuffle([ans,...wrong.slice(0,3)]);
+        return {q,opts,ans:opts.indexOf(ans),parsing:`x²-${a}x = -${b}，配方：x²-${a}x+${half*half} = -${b}+${half*half}，即 (x-${half})²=${c}`,kp:'配方法',diff:'基础'};
+      },
+      function g2(){
+        const a=ri(2,5),b=ri(2,8),c=ri(1,5);
+        const left=b/(2*a);
+        const right=(c/a)-left*left;
+        const q=`用配方法解方程 ${a}x²-${b}x+${c}=0，配方后应为（ ）`;
+        const ans=`(x-${left.toFixed(1).replace(/\.0$/,'')})²=${Math.abs(right).toFixed(2).replace(/\.00$/,'').replace(/0$/,'')}`;
+        const wrong=[`(x-${(left+0.5).toFixed(1).replace(/\.0$/,'')})²=${Math.abs(right).toFixed(2).replace(/\.00$/,'').replace(/0$/,'')}`,`(x-${left.toFixed(1).replace(/\.0$/,'')})²=${Math.abs(right+1).toFixed(2).replace(/\.00$/,'').replace(/0$/,'')}`,`(x-${(left-0.5).toFixed(1).replace(/\.0$/,'')})²=${Math.abs(right).toFixed(2).replace(/\.00$/,'').replace(/0$/,'')}`];
+        const opts=shuffle([ans,...wrong.slice(0,3)]);
+        return {q,opts,ans:opts.indexOf(ans),parsing:`先将二次项系数化为1，再配方`,kp:'配方法',diff:'中档'};
+      }
+    ],
+    '公式法（判别式）':[
+      function g1(){
+        const a=1,b=ri(2,8),c=ri(1,5);
+        const d=b*b-4*a*c;
+        const q=`方程 x²-${b}x+${c}=0 的判别式 Δ=（ ）`;
+        const ans=`${d}`;
+        const wrong=[`${d+1}`,`${b*b+4*c}`,`${b*b}`];
+        const opts=shuffle([ans,...wrong.slice(0,3)]);
+        return {q,opts,ans:opts.indexOf(ans),parsing:`Δ=b²-4ac = (${b})²-4×1×${c} = ${b*b}-${4*c} = ${d}`,kp:'公式法',diff:'基础'};
+      },
+      function g2(){
+        const a=1,b=ri(2,6),c=ri(1,3);
+        const d=b*b-4*c;
+        const q=`方程 x²-${b}x+${c}=0 的根的情况是（ ）`;
+        let ans,wrong;
+        if(d>0){ans='有两个不相等的实数根';wrong=['有两个相等的实数根','无实数根','无法确定'];}
+        else if(d===0){ans='有两个相等的实数根';wrong=['有两个不相等的实数根','无实数根','无法确定'];}
+        else{ans='无实数根';wrong=['有两个不相等的实数根','有两个相等的实数根','无法确定'];}
+        const opts=shuffle([ans,...wrong.slice(0,3)]);
+        return {q,opts,ans:opts.indexOf(ans),parsing:`Δ=(${b})²-4×1×${c}=${d} ${d>0?'>0，故有两个不相等的实数根':d===0?'=0，故有两个相等的实数根':'<0，故无实数根'}`,kp:'公式法',diff:'基础'};
+      }
+    ],
+    '因式分解法':[
+      function g1(){
+        const m=ri(2,5),n=ri(2,5);
+        const sum=m+n,prod=m*n;
+        const q=`方程 x²-${sum}x+${prod}=0 的解是（ ）`;
+        const ans=`x₁=${m}, x₂=${n}`;
+        const wrong=[`x₁=${m+1}, x₂=${n}`,`x₁=${m}, x₂=${n+1}`,`x₁=${sum}, x₂=0`];
+        const opts=shuffle([ans,...wrong.slice(0,3)]);
+        return {q,opts,ans:opts.indexOf(ans),parsing:`因式分解：(x-${m})(x-${n})=0，故 x=${m} 或 x=${n}`,kp:'因式分解',diff:'基础'};
+      },
+      function g2(){
+        const m=ri(1,4),n=ri(2,5),p=ri(2,4);
+        const a=p,b=-(m*p+n),c=m*n;
+        const q=`方程 ${a}x²${b>=0?'+'+b:b}x${c>=0?'+'+c:c}=0 的解是（ ）`;
+        const ans=`x₁=${m}, x₂=${n/p}`;
+        const wrong=[`x₁=${m+1}, x₂=${n/p}`,`x₁=${m}, x₂=${(n+1)/p}`,`x₁=${m+n}, x₂=0`];
+        const opts=shuffle([ans,...wrong.slice(0,3)]);
+        return {q,opts,ans:opts.indexOf(ans),parsing:`十字相乘法分解：(${p}x-${n})(x-${m})=0，解得 x=${n/p} 或 x=${m}`,kp:'因式分解',diff:'中档'};
+      }
+    ],
+    '根与系数的关系':[
+      function g1(){
+        const m=ri(2,5),n=ri(2,5);
+        const sum=m+n,prod=m*n;
+        const q=`方程 x²-${sum}x+${prod}=0 的两根之和为（ ）`;
+        const ans=`${sum}`;
+        const wrong=[`${prod}`,`${sum+1}`,`${m}`];
+        const opts=shuffle([ans,...wrong.slice(0,3)]);
+        return {q,opts,ans:opts.indexOf(ans),parsing:`由韦达定理：x₁+x₂=-b/a = ${sum}`,kp:'根与系数',diff:'基础'};
+      },
+      function g2(){
+        const m=ri(2,5),n=ri(2,5);
+        const sum=m+n,prod=m*n;
+        const q=`方程 x²-${sum}x+${prod}=0 的两根之积为（ ）`;
+        const ans=`${prod}`;
+        const wrong=[`${sum}`,`${prod+1}`,`${n}`];
+        const opts=shuffle([ans,...wrong.slice(0,3)]);
+        return {q,opts,ans:opts.indexOf(ans),parsing:`由韦达定理：x₁·x₂=c/a = ${prod}`,kp:'根与系数',diff:'基础'};
+      },
+      function g3(){
+        const m=ri(2,5),n=ri(2,5);
+        const sum=m+n,prod=m*n;
+        const target=sum*sum-2*prod;
+        const q=`方程 x²-${sum}x+${prod}=0 的两根满足 x₁²+x₂²=（ ）`;
+        const ans=`${target}`;
+        const wrong=[`${sum*sum}`,`${target+1}`,`${prod*2}`];
+        const opts=shuffle([ans,...wrong.slice(0,3)]);
+        return {q,opts,ans:opts.indexOf(ans),parsing:`x₁²+x₂²=(x₁+x₂)²-2x₁x₂ = ${sum}²-2×${prod} = ${sum*sum}-${2*prod} = ${target}`,kp:'根与系数',diff:'中档'};
+      }
+    ],
+  }
+};
+
+function generateQuestions(chapter,kps,diff,numPerDiff){
+  const result=[];
+  const templates=QG[chapter];
+  if(!templates)return result;
+  kps.forEach(kp=>{
+    const pool=templates[kp];
+    if(!pool)return;
+    pool.forEach(fn=>{
+      const q=fn();
+      if(diff.includes(q.diff)){
+        result.push(q);
+      }
+    });
+  });
+  // 如果不够，循环生成直到满足数量
+  while(result.length<numPerDiff[0]+numPerDiff[1]+numPerDiff[2]){
+    kps.forEach(kp=>{
+      const pool=templates[kp];
+      if(!pool)return;
+      const q=fn=>fn();
+      const picked=rp(pool)();
+      if(diff.includes(picked.diff)&&result.length<numPerDiff[0]+numPerDiff[1]+numPerDiff[2]){
+        result.push(picked);
+      }
+    });
+  }
+  // 按难度分组
+  const base=result.filter(q=>q.diff==='基础').slice(0,numPerDiff[0]);
+  const mid=result.filter(q=>q.diff==='中档').slice(0,numPerDiff[1]);
+  const high=result.filter(q=>q.diff==='拔高').slice(0,numPerDiff[2]);
+  return {base,mid,high};
+}
+
+const DEFAULT_DATA={
+  student:{
+    name:'彦材',grade:'初三',power:78,
+    boba:0,bobaBreakdown:{class:0,homework:0,quiz:0},
+    quizToday:0,quizCap:20,quizTotal:0,quizRate:10,
+    marshmallows:0,
+    chapter:'第25章 一元二次方程',chapterProgress:0,
+    weekHours:0,
+    accuracy:[],
+    mastery:[{name:'数与代数',p:0},{name:'图形与几何',p:0},{name:'统计与概率',p:0}],
+    weak:[],
+    achievements:[
+      {id:1,name:'第一次动笔',icon:'🌸',unlocked:false,date:''},
+      {id:2,name:'连续3天提交作业',icon:'🔥',unlocked:false,date:''},
+      {id:3,name:'星星收集者',icon:'🌟',unlocked:false,date:''},
+      {id:4,name:'奶茶兑换者',icon:'🧋',unlocked:false},
+      {id:5,name:'百题斩',icon:'💪',unlocked:false},
+      {id:6,name:'副本通关王',icon:'📚',unlocked:false},
+      {id:7,name:'计算小达人',icon:'🏅',unlocked:false},
+      {id:8,name:'思路王',icon:'🏅',unlocked:false},
+      {id:9,name:'肝帝',icon:'🏅',unlocked:false},
+    ],
+    bobaLog:[],
+    quizLog:[],
+    notes:[],
+    homeworkSubs:[],
+    homeworkHistory:[],
+    missions:{
+      bronze:[
+        {done:false,src:'[2025广东·第3题改编]',q:'方程 x²-5x+6=0 的两根之和为（ ）',kp:'实数-平方根'},
+        {done:false,src:'[课本P12]',q:'解方程：x²-4x-5=0',kp:'配方法'},
+        {done:false,src:'[2024广州·改编]',q:'若 x=2 是方程 x²-3x+k=0 的根，则 k= ?',kp:'根与系数'},
+        {done:false,src:'[基础训练]',q:'一元二次方程 2x²+3x-1=0 的二次项系数是？',kp:'方程概念'},
+      ],
+      silver:[
+        {done:false,src:'[2025广东·第8题]',q:'已知关于x的方程 x²-2x+m=0 有两个不相等的实数根，求m的取值范围。',kp:'判别式'},
+        {done:false,src:'[课本P15]',q:'用配方法解方程 x²+6x+4=0',kp:'配方法',tip:'💡 移项时注意符号，配方时两边同加'},
+        {done:false,src:'[2024深圳·改编]',q:'某商品原价100元，连续两次降价后为81元，求平均每次降价的百分率。',kp:'实际应用'},
+        {done:false,src:'[综合训练]',q:'若方程 x²+mx+4=0 的两根互为倒数，求 m 的值。',kp:'根与系数'},
+        {done:false,src:'[拓展]',q:'已知 x₁,x₂ 是方程 x²-3x-1=0 的两根，求 x₁²+x₂² 的值。',kp:'根与系数'},
+      ],
+      gold:[
+        {done:false,src:'[2024广东·第22题]',q:'如图，矩形ABCD中，AB=6，BC=8，点P从A出发沿AB运动...（综合题）',kp:'二次函数综合',nav:'🧭 先列P点坐标表达式，再建立面积函数'},
+        {done:false,src:'[竞赛改编]',q:'已知 a,b 是方程 x²-2025x+1=0 的两根，求 a²+2026a+b²-2026b 的值。',kp:'高阶代数',nav:'🧭 利用方程根的定义 a²=2025a-1 巧妙降次'},
+      ],
+    },
+    dailyTasks:[
+      {done:false,text:'今天第一个登录奶茶屋！'},
+      {done:false,text:'在草稿纸上随便画个什么图形'},
+      {done:false,text:'给老师留一句小纸条'},
+    ],
+    wishes:{
+      unlocked:[],
+      available:[
+        {icon:'📖',name:'多看20分钟小说',cost:20},
+        {icon:'🍬',name:'买一块喜欢的橡皮',cost:20},
+        {icon:'📱',name:'多玩10分钟手机',cost:20},
+        {icon:'🎁',name:'自定义愿望（需老师审批）',cost:20},
+      ]
+    },
+    quizLevels:[
+      {id:1,name:'基础巩固',locked:false,diff:'4基础+1中档',reward:3},
+      {id:2,name:'中档突破',locked:true,diff:'2基础+3中档',reward:4},
+      {id:3,name:'综合挑战',locked:true,diff:'1基础+3中档+1拔高',reward:5},
+      {id:4,name:'真题演练',locked:true,diff:'全部广东中考真题/改编',reward:6},
+      {id:5,name:'BOSS关',locked:true,diff:'1中档+2拔高',reward:8},
+    ],
+    quizDone:false,
+  },
+  teacher:{
+    loggedIn:false,password:'888888',
+    toGrade:[],notesUnread:1,
+    settings:{
+      welcome:'彦材早安！今天也是超棒的一天！🌞',
+      autoWelcome:false,
+      pointName:'芋泥球',exchangeTarget:40,exchangeItem:'一杯奶茶',
+      hwReward:3,quizCap:20,quizRate:10,
+      hwRemind:'21:00',
+      dailyTasks:['今天第一个登录奶茶屋！','在草稿纸上随便画个什么图形','给老师留一句小纸条'],
+      goldOn:true,
+    },
+    quizBank:{
+      1:[
+        {q:'方程 x²-9=0 的解是？',opts:['x=3','x=±3','x=-3','x=9'],ans:1,parsing:'x²=9，开方得 x=±3',kp:'直接开平方法',diff:'基础',src:'[基础]'},
+        {q:'方程 x²-5x+6=0 的解是？',opts:['x=1,6','x=2,3','x=-2,-3','x=-1,-6'],ans:1,parsing:'分解因式 (x-2)(x-3)=0',kp:'因式分解',diff:'基础',src:'[2025广东]'},
+        {q:'一元二次方程 2x²+3x-1=0 的二次项系数是？',opts:['1','2','3','-1'],ans:1,parsing:'二次项为2x²，系数为2',kp:'方程概念',diff:'基础',src:'[基础]'},
+        {q:'方程 x²+4x+4=0 的根的情况是？',opts:['两个不等实根','两个相等实根','无实根','无法确定'],ans:1,parsing:'Δ=16-16=0，相等实根',kp:'判别式',diff:'基础',src:'[基础]'},
+        {q:'若 x=2 是 x²-3x+k=0 的根，则 k=?',opts:['1','2','3','6'],ans:1,parsing:'代入4-6+k=0，k=2',kp:'根与系数',diff:'中档',src:'[2024广州]'},
+      ],
+    },
+  },
+  currentPage:'home',
+  sidebarOpen:false,
+};
+
+let DB={};
+const KEY='mathmilktea_v2';
+let _syncChannel=null;
+
+function loadDB(){
+  try{
+    const raw=localStorage.getItem(KEY);
+    if(raw){DB=JSON.parse(raw);DB.currentPage=DB.currentPage||'home';}
+    else{DB=JSON.parse(JSON.stringify(DEFAULT_DATA));saveDB();}
+  }catch(e){DB=JSON.parse(JSON.stringify(DEFAULT_DATA));}
+}
+let _lastSaveTs=0;
+function saveDB(){
+  _lastSaveTs=Date.now();
+  localStorage.setItem(KEY,JSON.stringify(DB));
+  if(_syncChannel){try{_syncChannel.postMessage({type:'sync',t:Date.now()});}catch(e){}}
+}
+function _onSyncMessage(){
+  const raw=localStorage.getItem(KEY);
+  if(raw){
+    try{
+      const newDB=JSON.parse(raw);
+      newDB.currentPage=DB.currentPage;
+      newDB.sidebarOpen=DB.sidebarOpen;
+      DB=newDB;
+      render();
+    }catch(e){}
+  }
+}
+function refreshFromStorage(){
+  const raw=localStorage.getItem(KEY);
+  if(raw){
+    try{
+      const parsed=JSON.parse(raw);
+      parsed.currentPage=DB.currentPage;
+      parsed.sidebarOpen=DB.sidebarOpen;
+      parsed.teacher.loggedIn=DB.teacher.loggedIn;
+      DB=parsed;
+      render();renderSidebar();
+      toast('🔄 数据已同步');
+    }catch(e){}
+  }
+}
+
+/* ============ CLOUD SYNC (GitHub Gist - 永久存储，永不过期) ============ */
+const GIST_ID='a4619af1dfab3b4a932e0d45bb214ec4';
+const GIST_TOKEN='__GIST_TOKEN__';
+const GIST_API='https://api.github.com/gists/'+GIST_ID;
+const GIST_HEADERS={
+  'Authorization':'token '+GIST_TOKEN,
+  'Accept':'application/vnd.github+json',
+  'Content-Type':'application/json'
+};
+let _cloudSyncing=false;
+
+async function cloudFetch(){
+  try{
+    const res=await fetch(GIST_API,{headers:GIST_HEADERS});
+    if(!res.ok)return null;
+    const gist=await res.json();
+    const raw=gist.files&&gist.files['data.json']&&gist.files['data.json'].content;
+    if(!raw)return null;
+    return JSON.parse(raw);
+  }catch(e){return null;}
+}
+
+async function cloudSave(data){
+  try{
+    const res=await fetch(GIST_API,{
+      method:'PATCH',
+      headers:GIST_HEADERS,
+      body:JSON.stringify({
+        files:{'data.json':{content:JSON.stringify(data)}}
+      })
+    });
+    return res.ok;
+  }catch(e){return false;}
+}
+
+// 老师发布作业 → 上传到云端
+async function cloudPublishHW(homework){
+  const cloud=await cloudFetch()||{homeworks:[],submissions:[]};
+  if(!cloud.homeworks)cloud.homeworks=[];
+  // 去重：同一天替换
+  cloud.homeworks=cloud.homeworks.filter(h=>h.date!==homework.date);
+  cloud.homeworks.push(homework);
+  const ok=await cloudSave(cloud);
+  if(ok)toast('☁️ 作业已同步到云端，学生可见');
+  else toast('⚠️ 云端同步失败，仅本地保存');
+  return ok;
+}
+
+// 学生提交作业 → 上传到云端
+async function cloudSubmitHW(submission){
+  const cloud=await cloudFetch()||{homeworks:[],submissions:[]};
+  if(!cloud.submissions)cloud.submissions=[];
+  cloud.submissions.push(submission);
+  const ok=await cloudSave(cloud);
+  if(ok)toast('☁️ 作业已上传，老师可见');
+  return ok;
+}
+
+// 老师批改 → 更新云端
+async function cloudGradeHW(submission_dt,status,feedback,boba){
+  const cloud=await cloudFetch()||{homeworks:[],submissions:[]};
+  if(!cloud.submissions)cloud.submissions=[];
+  const sub=cloud.submissions.find(s=>s.dt===submission_dt);
+  if(sub){
+    sub.status=status;sub.feedback=feedback;sub.boba=boba;
+    await cloudSave(cloud);
+  }
+  return true;
+}
+
+// 从云端拉取数据（学生端获取作业 / 老师端获取提交）
+async function cloudPull(){
+  if(_cloudSyncing)return;
+  _cloudSyncing=true;
+  try{
+    const cloud=await cloudFetch();
+    if(!cloud){_cloudSyncing=false;return;}
+
+    // 学生端：拉取老师发布的作业
+    if(cloud.homeworks&&cloud.homeworks.length){
+      const latest=cloud.homeworks[cloud.homeworks.length-1];
+      if(latest&&(!DB._cloudHwDate||DB._cloudHwDate!==latest.date)){
+        DB._cloudHwDate=latest.date;
+        if(latest.missions){
+          DB.student.missions=latest.missions;
+          DB.student.chapter=latest.chapter||DB.student.chapter;
+          saveDB();
+          toast('📥 收到老师新布置的作业！');
+          render();
+        }
+      }
+    }
+
+    // 老师端：拉取学生提交的作业
+    if(cloud.submissions&&cloud.submissions.length){
+      let newCount=0;
+      cloud.submissions.forEach(sub=>{
+        if(!DB.teacher.toGrade.find(g=>g.dt===sub.dt)){
+          DB.teacher.toGrade.push(sub);
+          newCount++;
+        }else{
+          const existing=DB.teacher.toGrade.find(g=>g.dt===sub.dt);
+          if(sub.status&&sub.status!=='pending'&&!existing.statusUpdated){
+            existing.status=sub.status;
+            existing.feedback=sub.feedback;
+            existing.boba=sub.boba;
+            existing.statusUpdated=true;
+          }
+        }
+      });
+      if(newCount>0){
+        saveDB();
+        toast('📥 收到'+newCount+'份新作业提交！');
+        render();
+      }
+    }
+
+    // 学生端：拉取批改结果
+    if(cloud.submissions&&cloud.submissions.length){
+      cloud.submissions.forEach(sub=>{
+        if(sub.status==='graded'){
+          const existing=DB.student.homeworkHistory.find(h=>h.dt===sub.dt);
+          if(!existing||(existing.status!=='graded')){
+            if(existing){
+              existing.status='graded';
+              existing.comment=sub.feedback||'';
+            }else{
+              DB.student.homeworkHistory.unshift({dt:sub.dt,status:'graded',comment:sub.feedback||''});
+            }
+            if(sub.boba){
+              addBoba(sub.boba,'作业批改','🌟');
+            }
+            saveDB();
+            toast('🎉 作业批改结果已同步！');
+            render();
+          }
+        }
+      });
+    }
+  }catch(e){}
+  _cloudSyncing=false;
+}
+
+/* ============ HELPERS ============ */
+function todayStr(){
+  const d=new Date();const w=['日','一','二','三','四','五','六'];
+  return `${d.getMonth()+1}/${d.getDate()} 周${w[d.getDay()]}`;
+}
+function toast(msg){
+  const t=document.getElementById('toast');t.innerHTML=msg;t.classList.add('show');
+  clearTimeout(t._tm);t._tm=setTimeout(()=>t.classList.remove('show'),2200);
+}
+function floatNum(x,y,text){
+  const el=document.createElement('div');el.className='float-num';el.textContent=text;
+  el.style.left=x+'px';el.style.top=y+'px';document.body.appendChild(el);
+  setTimeout(()=>el.remove(),1000);
+}
+function addBoba(v,src,tag){
+  DB.student.boba+=v;
+  DB.student.bobaBreakdown.class+=/课堂|思路/.test(src)?v:0;
+  DB.student.bobaBreakdown.homework+=/作业/.test(src)?v:0;
+  DB.student.bobaBreakdown.quiz+=/闯关/.test(src)?v:0;
+  DB.student.bobaLog.unshift({v,dt:todayStr()+' '+new Date().toTimeString().slice(0,5),src,tag:tag||'✅'});
+  saveDB();
+  if(DB.student.boba>=DB.teacher.settings.exchangeTarget)confetti();
+}
+function addQuiz(v){
+  if(DB.student.quizToday>=DB.student.quizCap){toast('⭐ 今日闯关积分已满20分！明天继续加油💪');return false;}
+  const add=Math.min(v,DB.student.quizCap-DB.student.quizToday);
+  DB.student.quizToday+=add;DB.student.quizTotal+=add;
+  DB.student.quizLog.unshift({v:add,dt:todayStr()+' '+new Date().toTimeString().slice(0,5),src:'闯关答对',tag:'🎮'});
+  // auto convert
+  const newConv=Math.floor(DB.student.quizTotal/DB.student.quizRate);
+  saveDB();
+  return true;
+}
+function recomputePower(){
+  DB.student.power=78+Math.floor(DB.student.boba*0.5)+DB.student.quizTotal;
+  saveDB();
+}
+
+/* ============ CONFETTI ============ */
+function confetti(){
+  const c=document.getElementById('confetti');c.width=innerWidth;c.height=innerHeight;
+  const ctx=c.getContext('2d');const colors=['#C9B1D0','#FFB7A1','#FFE4B5','#A8D8B9','#B89EC4'];
+  const ps=[];
+  for(let i=0;i<120;i++)ps.push({x:Math.random()*c.width,y:-20-Math.random()*200,
+    r:4+Math.random()*6,col:colors[i%colors.length],vy:2+Math.random()*4,vx:-2+Math.random()*4,rot:Math.random()*6.28,vr:-0.2+Math.random()*0.4});
+  let frame=0;
+  function draw(){
+    ctx.clearRect(0,0,c.width,c.height);frame++;
+    ps.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.rot+=p.vr;
+      ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.rot);ctx.fillStyle=p.col;
+      ctx.fillRect(-p.r/2,-p.r/2,p.r,p.r*0.6);ctx.restore();});
+    if(frame<240)requestAnimationFrame(draw);else ctx.clearRect(0,0,c.width,c.height);
+  }
+  draw();
+}
+
+/* ============ SIDEBAR ============ */
+function toggleSidebar(open){
+  document.getElementById('sidebar').classList.toggle('open',open);
+  document.getElementById('overlay').classList.toggle('open',open);
+  DB.sidebarOpen=open;if(open)renderSidebar();
+}
+function renderSidebar(){
+  const s=DB.student;const t=DB.teacher;
+  document.getElementById('sbSub').textContent=`${s.grade} · 战力值 ${s.power}`;
+  const items=[
+    {sec:'📚 学习',list:[
+      {ic:'home',t:'首页',p:'home'},{ic:'task',t:'副本任务',p:'missions'},
+      {ic:'game',t:'闯关游戏',p:'quiz'},{ic:'chart',t:'学习进度',p:'progress'},
+    ]},
+    {sec:'💝 生活',list:[
+      {ic:'note',t:'小纸条',p:'notes'},{ic:'trophy',t:'我的成就',p:'achievements'},
+      {ic:'star',t:'星星许愿池',p:'wishpool'},{ic:'coin',t:'积分流水',p:'points'},
+    ]},
+    {sec:'⚙️ 设置',list:[
+      {ic:'lock',t:'老师入口',action:'teacherLogin'},
+      {ic:'phone',t:'添加到桌面',action:'addHome'},
+    ]},
+  ];
+  if(t.loggedIn)items[2].list.splice(1,0,{ic:'settings',t:'老师后台（已登录）',p:'thome'});
+  let h='';
+  items.forEach(sec=>{
+    h+=`<div class="menu-section"><div class="menu-section-title">${sec.sec}</div>`;
+    sec.list.forEach(it=>{
+      const active=DB.currentPage===it.p?'active':'';
+      h+=`<div class="menu-item ${active}" onclick="${it.action?it.action+'()':'navigate(\''+it.p+'\')'}">${SVG[it.ic]}<span>${it.t}</span></div>`;
+    });
+    h+=`</div>`;
+  });
+  document.getElementById('sbBody').innerHTML=h;
+}
+
+/* ============ NAVIGATION ============ */
+const TITLES={
+  home:'🌟 小星球的数学奶茶屋',missions:'📝 副本任务中心',quiz:'🎮 闯关游戏',
+  progress:'📊 我的学习进度',notes:'📩 小纸条',achievements:'🏆 我的成就墙',
+  wishpool:'🌸 星星许愿池',points:'💰 积分流水',
+  thome:'🔐 老师后台',tgrade:'📋 批改作业',tpoints:'✏️ 修改积分',
+  tassign:'📝 布置作业',tnotes:'📩 小纸条管理',tquiz:'🎮 闯关题库管理',
+  treport:'📊 学情报告',tprogress:'📚 当前教学进度',tsettings:'⚙️ 系统设置',
+};
+function navigate(page){
+  DB.currentPage=page;saveDB();
+  toggleSidebar(false);
+  document.getElementById('pageTitle').textContent=TITLES[page]||'';
+  render();
+}
+function render(){
+  const p=DB.currentPage;const main=document.getElementById('main');
+  main.innerHTML='';
+  const div=document.createElement('div');div.className='page active';
+  div.innerHTML=PAGES[p]?PAGES[p]():'<div class="card">页面建设中...</div>';
+  main.appendChild(div);
+  // post-render hooks
+  if(p==='progress')drawChart();
+  if(p==='quiz'&&DB._quizState)renderQuizState();
+  window.scrollTo(0,0);
+}
+
+/* ============ PAGES ============ */
+const PAGES={};
+
+/* ---- 6.1 HOME ---- */
+PAGES.home=function(){
+  const s=DB.student;const t=DB.teacher.settings;
+  const need=s.boba<t.exchangeTarget;
+  return `
+  <div class="tea-card" onclick="toast('🧋 课堂获得：${s.bobaBreakdown.class}颗 | 📝 作业获得：${s.bobaBreakdown.homework}颗 | 🎮 闯关换算：${s.bobaBreakdown.quiz}颗')">
+    <div class="tt"><span>🧋 我的奶茶杯</span><span class="text-sm">🌸 勇气棉花糖：${s.marshmallows}颗</span></div>
+    <div class="prog">${s.boba} / ${t.exchangeTarget}</div>
+    <div class="bar"><span style="width:${Math.min(100,s.boba/t.exchangeTarget*100)}%"></span></div>
+    <div class="hint">${need?`还差${t.exchangeTarget-s.boba}颗芋泥球就能兑换奶茶啦！💪`:'🎉 恭喜！可以兑换一杯奶茶啦！'}</div>
+  </div>
+  <div class="card">
+    <div class="snap">
+      <div class="item"><div class="num">${s.quizToday}/${s.quizCap}</div><div class="lbl">⭐ 今日闯关积分</div></div>
+      <div class="item"><div class="num">${Math.floor(s.quizToday/s.quizRate)}</div><div class="lbl">→ 已换算芋泥球</div></div>
+    </div>
+  </div>
+  <div class="section-label">✨ 快速入口</div>
+  <div class="grid-2">
+    <div class="feat" onclick="navigate('missions')"><div class="ic" style="background:var(--green-bg)">${SVG.task}</div>今日副本</div>
+    <div class="feat" onclick="navigate('homework')"><div class="ic" style="background:var(--purple-bg)">${SVG.upload}</div>提交作业</div>
+    <div class="feat" onclick="navigate('quiz')"><div class="ic" style="background:var(--gold-bg)">${SVG.game}</div>闯关游戏</div>
+    <div class="feat" onclick="navigate('achievements')"><div class="ic" style="background:#FDECEC">${SVG.trophy}</div>我的成就</div>
+  </div>
+  <div class="section-label">🌱 今日互动</div>
+  <div class="card">
+    <div class="card-title">今日互动：已完成 ${s.dailyTasks.filter(t=>t.done).length}/3</div>
+    ${s.dailyTasks.map((t,i)=>`
+    <div class="task ${t.done?'done':''}" onclick="toggleTask(${i})">
+      <div class="cbx ${t.done?'done':''}">${SVG.check}</div>
+      <div class="txt">${t.text}</div>
+    </div>`).join('')}
+  </div>
+  <div class="right muted text-sm" style="margin-top:16px;">不跟别人比，只跟昨天的自己击个掌🖐️</div>
+  `;
+};
+function toggleTask(i){
+  DB.student.dailyTasks[i].done=!DB.student.dailyTasks[i].done;saveDB();render();
+}
+
+/* ---- 6.2 MISSIONS ---- */
+PAGES.missions=function(){
+  const s=DB.student;
+  return `
+  <div class="card"><div class="card-title">📅 今日副本 · ${todayStr()}</div>
+    <div class="text-sm muted">当前进度：${s.chapter}</div></div>
+  ${renderLayer('🔥 青铜·热身小怪（4道）','var(--green-bg)','bronze',false)}
+  ${renderLayer('💪 白银·精英怪挑战（5道）','var(--purple-bg)','silver',true)}
+  ${renderLayer('👑 黄金·BOSS副本（选做·2道）','var(--gold-bg)','gold',true)}
+  <div class="right muted text-sm" style="margin-top:8px;">💕 写不完没关系，空着的题明天老师陪你一起打~</div>
+  `;
+};
+function renderLayer(title,bg,layer,collapsed){
+  const arr=DB.student.missions[layer];
+  return `<div class="layer" style="background:${bg}">
+    <div class="layer-head collapse" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+      <span>${title}</span><span style="font-size:12px;">${arr.filter(a=>a.done).length}/${arr.length}</span></div>
+    <div class="layer-body" style="display:${collapsed?'none':'block'}">
+      ${arr.map((q,i)=>`
+      <div class="q">
+        <div class="qhead">
+          <div class="cbx ${q.done?'done':''}" onclick="toggleMission('${layer}',${i})">${SVG.check}</div>
+          <div style="flex:1"><span class="src">${q.src}</span><br><span class="kp">📌 ${q.kp}</span></div>
+        </div>
+        <div class="ct" style="margin-left:30px;">${q.q}</div>
+        ${q.tip?`<div class="text-sm" style="margin-left:30px;margin-top:6px;color:#B8860B">${q.tip}</div>`:''}
+        ${q.nav?`<div class="text-sm" style="margin-left:30px;margin-top:6px;color:var(--main-d)">${q.nav}</div>`:''}
+      </div>`).join('')}
+    </div></div>`;
+}
+function toggleMission(layer,i){
+  DB.student.missions[layer][i].done=!DB.student.missions[layer][i].done;saveDB();render();
+}
+
+/* ---- 6.3 HOMEWORK ---- */
+PAGES.homework=function(){
+  const s=DB.student;
+  const hist={graded:{icon:'✅',t:'已批改'},pending:{icon:'⏳',t:'待批改'},missing:{icon:'❌',t:'未提交'}};
+  return `
+  <div class="card"><div class="card-title">📝 今日副本 · ${todayStr()}</div><div class="text-sm muted">${s.chapter}</div></div>
+  <div class="card">
+    <div class="card-title">📤 上传作业</div>
+    <label class="upload" for="hwfile">${SVG.camera}<span>点击拍照或上传图片</span></label>
+    <input type="file" id="hwfile" accept="image/*" multiple style="display:none" onchange="handleHWUpload(this)">
+    <div class="thumbs" id="hwthumbs">${(DB._hwTemp||[]).map((src,i)=>`<div class="thumb"><img src="${src}"><div class="del" onclick="delHWThumb(${i})">✕</div></div>`).join('')}</div>
+    <button class="btn btn-main btn-block mt" onclick="submitHW()">确认提交</button>
+  </div>
+  <div class="section-label">📜 历史提交记录</div>
+  <div class="card">${s.homeworkHistory.map(h=>`
+    <div class="log"><div><div style="font-weight:600">${h.dt}</div><div class="lt">${hist[h.status].icon} ${hist[h.status].t}${h.comment?' · '+h.comment:''}</div></div></div>`).join('')}
+  </div>`;
+};
+function handleHWUpload(input){
+  DB._hwTemp=DB._hwTemp||[];
+  Array.from(input.files).forEach(f=>{
+    const r=new FileReader();r.onload=e=>{DB._hwTemp.push(e.target.result);render();};r.readAsDataURL(f);
+  });
+}
+function delHWThumb(i){DB._hwTemp.splice(i,1);render();}
+function submitHW(){
+  if(!DB._hwTemp||DB._hwTemp.length===0){toast('📸 请先拍照上传作业哦~');return;}
+  openModal(`
+  <h3>确认提交作业？</h3><p class="muted text-sm" style="text-align:center;margin-bottom:16px;">共 ${DB._hwTemp.length} 张图片</p>
+  <button class="btn btn-main btn-block" onclick="confirmHW()">确认提交</button>
+  <button class="btn btn-outline btn-block mt" onclick="closeModal()">取消</button>`);
+}
+function confirmHW(){
+  closeModal();
+  const subDt=todayStr()+' '+new Date().toTimeString().slice(0,5);
+  DB.student.homeworkSubs.push({dt:subDt,imgs:[...DB._hwTemp],status:'pending'});
+  DB._hwTemp=[];
+  addBoba(3,'完成作业','📤');recomputePower();
+  // 上传到云端，让老师端也能收到
+  cloudSubmitHW({
+    dt:subDt,
+    imgs:[],  // 图片太大不上传到云端，只通知老师有新提交
+    imgCount:DB.student.homeworkSubs[DB.student.homeworkSubs.length-1].imgs.length,
+    status:'pending'
+  });
+  toast('🎉 作业提交成功！+3颗芋泥球已到账！');
+  render();
+}
+
+/* ---- 6.4 QUIZ GAME ---- */
+PAGES.quiz=function(){
+  const s=DB.student;
+  if(DB._quizState&&DB._quizState.active)return quizPlaying();
+  return `
+  <div class="card">
+    <div class="card-title">⭐ 今日闯关积分</div>
+    <div class="prog" style="font-size:20px;font-weight:700;margin-bottom:8px;">${s.quizToday} / ${s.quizCap}</div>
+    <div class="bar"><span style="width:${s.quizToday/s.quizCap*100}%"></span></div>
+    <div class="text-sm muted mt">→ 已换算芋泥球：${Math.floor(s.quizToday/s.quizRate)}颗</div>
+  </div>
+  <div class="card" style="background:var(--gold-bg);color:#8B6914">
+    彦材，每关有5道题，答对得1闯关积分！${s.quizRate}积分=1芋泥球💪
+  </div>
+  <div class="section-label">🗺️ 关卡地图</div>
+  ${s.quizLevels.map(l=>`
+  <div class="lvl ${l.locked?'locked':''}" ${l.locked?'':'onclick="startQuiz('+l.id+')"'} style="${l.locked?'':'cursor:pointer'}">
+    <div class="info"><div class="ln">${l.locked?'🔒 ':''}第${l.id}关：${l.name}</div><div class="ld">${l.diff}</div></div>
+    <div class="reward">+${l.reward}闯关积分</div>
+  </div>`).join('')}
+  `;
+};
+function startQuiz(id){
+  const qs=DB.teacher.quizBank[id];
+  if(!qs||!qs.length){toast('此关卡题目还在准备中~');return;}
+  DB._quizState={active:true,levelId:id,idx:0,correct:0,qs};
+  render();
+}
+function quizPlaying(){
+  const st=DB._quizState;const q=st.qs[st.idx];
+  return `
+  <div class="card">
+    <div class="between flex center"><span class="text-sm muted">第${st.levelId}关 · 第${st.idx+1}/${st.qs.length}题</span>
+    <span class="tag">✅ 答对 ${st.correct}</span></div>
+    <div class="bar mt"><span style="width:${(st.idx)/st.qs.length*100}%"></span></div>
+  </div>
+  <div class="card">
+    <div class="between flex text-xs mb"><span class="muted">${q.src}</span><span class="purple-text">📌 ${q.kp}</span></div>
+    <div style="font-size:15px;font-weight:600;margin-bottom:14px;">${q.q}</div>
+    <div id="opts">${q.opts.map((o,i)=>`<div class="opt" id="opt${i}" onclick="answerQuiz(${i})"><div class="letter">${String.fromCharCode(65+i)}</div><span>${o}</span></div>`).join('')}</div>
+    <div id="result"></div>
+  </div>`;
+}
+function answerQuiz(i){
+  const st=DB._quizState;const q=st.qs[st.idx];
+  const opts=document.getElementById('opts');
+  if(st.answered)return;st.answered=true;
+  const correct=i===q.ans;
+  Array.from(opts.children).forEach((el,j)=>{
+    if(j===q.ans)el.classList.add('correct');
+    else if(j===i)el.classList.add('wrong');
+  });
+  const res=document.getElementById('result');
+  if(correct){
+    st.correct++;
+    const ok=addQuiz(1);
+    if(ok){
+      res.innerHTML=`<div class="card" style="background:var(--green-bg);margin-top:10px"><b>🎉 太棒了！</b><br><span class="text-sm">+1闯关积分！今日已获 ${DB.student.quizToday}/${DB.student.quizCap}</span></div>`;
+      const r=opts.getBoundingClientRect();floatNum(r.left+60,r.top,`+1`);
+    }else{
+      res.innerHTML=`<div class="card" style="background:var(--gold-bg);margin-top:10px"><b>⭐ 今日闯关积分已满20分！明天继续加油💪</b></div>`;
+    }
+  }else{
+    res.innerHTML=`<div class="card" style="background:#FDECEC;margin-top:10px"><b>❌ 答错啦</b><br><span class="text-sm">正确答案：${String.fromCharCode(65+q.ans)}. ${q.opts[q.ans]}</span><br><span class="text-sm muted">解析：${q.parsing}</span></div>`;
+  }
+  setTimeout(()=>{
+    st.idx++;st.answered=false;
+    if(st.idx>=st.qs.length){
+      const lvl=DB.student.quizLevels.find(l=>l.id===st.levelId);
+      const bonus=lvl?lvl.reward:0;
+      addQuiz(bonus);recomputePower();
+      DB._quizState=null;confetti();
+      toast(`🎊 通关成功！额外奖励${bonus}闯关积分！`);
+      // unlock next
+      const cur=DB.student.quizLevels.find(l=>l.id===st.levelId);
+      if(cur){const next=DB.student.quizLevels.find(l=>l.id===st.levelId+1);if(next)next.locked=false;}
+      saveDB();render();
+    }else render();
+  },1800);
+}
+
+/* ---- 6.5 ACHIEVEMENTS ---- */
+PAGES.achievements=function(){
+  const s=DB.student;const unlocked=s.achievements.filter(a=>a.unlocked).length;
+  return `
+  <div class="card"><div class="card-title">🏆 我的成就墙</div><div class="text-sm muted">已解锁 ${unlocked} / ${s.achievements.length} 个徽章</div></div>
+  <div class="grid-3">
+    ${s.achievements.map(a=>`
+    <div class="badge ${a.unlocked?'':'locked'}">
+      <div class="bi" style="background:${a.unlocked?'var(--gold-bg)':'#f0f0f0'}">${a.unlocked?a.icon:'🔒'}</div>
+      <div class="bn">${a.name}</div>
+      <div class="bd">${a.unlocked?a.date:'未解锁'}</div>
+    </div>`).join('')}
+  </div>
+  <div class="right muted text-sm mt">💫 集齐全部徽章可解锁神秘奖励！</div>`;
+};
+
+/* ---- 6.6 NOTES ---- */
+PAGES.notes=function(){
+  const s=DB.student;
+  return `
+  <div class="chat" id="chatbox">
+    ${s.notes.map(m=>`<div class="msg ${m.me?'me':'t'}">${m.text}<span class="t">${m.t}</span></div>`).join('')}
+  </div>
+  <div class="chat-input">
+    <textarea id="noteinput" placeholder="今天有什么想对老师说的吗？"></textarea>
+    <button class="btn btn-main" onclick="sendNote()">${SVG.send}</button>
+  </div>`;
+};
+function sendNote(){
+  const v=document.getElementById('noteinput').value.trim();
+  if(!v)return;
+  DB.student.notes.push({me:true,text:v,t:todayStr()+' '+new Date().toTimeString().slice(0,5)});
+  saveDB();render();
+  setTimeout(()=>{document.getElementById('chatbox').scrollTop=9999;},100);
+}
+
+/* ---- 6.7 PROGRESS ---- */
+PAGES.progress=function(){
+  const s=DB.student;const wk=['一','二','三','四','五','六','日'];
+  return `
+  <div class="card"><div class="card-title">${SVG.clock} 本周已学习</div>
+    <div style="font-size:22px;font-weight:700;">${s.weekHours} 小时</div>
+    <div class="text-sm muted mt">⭐ 本周闯关积分：${s.quizTotal}分</div></div>
+  <div class="card"><div class="card-title">📈 本周正确率趋势</div>
+    <canvas id="chart" width="360" height="180"></canvas></div>
+  <div class="card"><div class="card-title">📊 知识点掌握</div>
+    ${s.mastery.map(m=>`
+    <div class="kbar"><div class="kl"><span>${m.name}</span><span class="purple-text">${m.p}%</span></div>
+    <div class="bar"><span style="width:${m.p}%"></span></div></div>`).join('')}
+  </div>
+  <div class="card" style="background:var(--gold-bg);color:#8B6914">💡 建议复习：${s.weak.join('、')}</div>
+  <div class="card"><div class="card-title">📚 当前章节进度</div>
+    <div class="text-sm muted mb">${s.chapter}</div>
+    <div class="bar"><span style="width:${s.chapterProgress}%"></span></div>
+    <div class="text-sm muted mt">${s.chapterProgress}%</div></div>`;
+};
+function drawChart(){
+  const c=document.getElementById('chart');if(!c)return;
+  const ctx=c.getContext('2d');const data=DB.student.accuracy;
+  const W=c.width,H=c.height,pad=24;
+  ctx.clearRect(0,0,W,H);
+  ctx.strokeStyle='#eee';ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){const y=pad+i*(H-2*pad)/4;ctx.beginPath();ctx.moveTo(pad,y);ctx.lineTo(W-pad,y);ctx.stroke();
+    ctx.fillStyle='#bbb';ctx.font='10px';ctx.fillText((100-i*25)+'%',2,y+3);}
+  const wk=['一','二','三','四','五','六','日'];
+  ctx.strokeStyle='#C9B1D0';ctx.lineWidth=2;ctx.beginPath();
+  data.forEach((v,i)=>{const x=pad+i*(W-2*pad)/6;const y=H-pad-(v/100)*(H-2*pad);
+    if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});
+  ctx.stroke();
+  ctx.fillStyle='#FFB7A1';data.forEach((v,i)=>{const x=pad+i*(W-2*pad)/6;const y=H-pad-(v/100)*(H-2*pad);
+    ctx.beginPath();ctx.arc(x,y,4,0,6.28);ctx.fill();
+    ctx.fillStyle='#8A7A8A';ctx.font='10px';ctx.fillText(v,x-8,y-8);ctx.fillStyle='#FFB7A1';});
+  ctx.fillStyle='#8A7A8A';ctx.font='10px';
+  wk.forEach((w,i)=>{const x=pad+i*(W-2*pad)/6;ctx.fillText(w,x-4,H-pad+14);});
+}
+
+/* ---- 6.8 WISHPOOL ---- */
+PAGES.wishpool=function(){
+  const s=DB.student;
+  return `
+  <div class="card" style="background:linear-gradient(135deg,var(--accent),var(--yellow));color:#fff">
+    <div class="card-title" style="color:#fff">🌸 当前拥有</div>
+    <div style="font-size:28px;font-weight:800;">${s.marshmallows} 颗勇气棉花糖</div>
+    <div class="text-sm mt" style="opacity:0.95">💫 攒够20颗勇气棉花糖，可以许一个愿望！</div>
+    <div class="bar mt" style="background:rgba(255,255,255,0.35)"><span style="width:${s.marshmallows/20*100}%"></span></div>
+    <div class="text-sm mt">${s.marshmallows}/20</div>
+  </div>
+  <div class="section-label">💝 可用愿望</div>
+  ${s.wishes.available.map((w,i)=>`
+  <div class="card between flex center">
+    <div><div style="font-size:24px">${w.icon}</div><div style="font-weight:600">${w.name}</div></div>
+    <button class="btn ${s.marshmallows>=w.cost?'btn-main':'btn-outline'} btn-sm" onclick="redeemWish(${i})">${w.cost}颗</button>
+  </div>`).join('')}
+  ${s.wishes.unlocked.length?`<div class="section-label">🎊 已解锁愿望</div>${s.wishes.unlocked.map(w=>`<div class="card">${w.icon} ${w.name} · ${w.dt}</div>`).join('')}`:''}`;
+};
+function redeemWish(i){
+  const w=DB.student.wishes.available[i];
+  if(DB.student.marshmallows<w.cost){toast('🌸 勇气棉花糖不够哦~');return;}
+  openModal(`<h3>🌸 确认许愿？</h3><p style="text-align:center;margin-bottom:16px;">${w.icon} ${w.name}<br>消耗 ${w.cost} 颗勇气棉花糖</p>
+  <button class="btn btn-accent btn-block" onclick="confirmWish(${i})">确认许愿</button>
+  <button class="btn btn-outline btn-block mt" onclick="closeModal()">取消</button>`);
+}
+function confirmWish(i){
+  const w=DB.student.wishes.available[i];
+  DB.student.marshmallows-=w.cost;
+  DB.student.wishes.unlocked.push({...w,dt:todayStr()});
+  closeModal();saveDB();render();toast('🎉 许愿成功！老师会尽快帮你实现~');
+}
+
+/* ---- 6.9 POINTS LOG ---- */
+PAGES.points=function(){
+  DB._ptTab=DB._ptTab||'boba';
+  const s=DB.student;
+  const tab=DB._ptTab;
+  return `
+  <div class="tabs"><div class="tab ${tab==='boba'?'active':''}" onclick="DB._ptTab='boba';render()">🧋 芋泥球流水</div>
+  <div class="tab ${tab==='quiz'?'active':''}" onclick="DB._ptTab='quiz';render()">⭐ 闯关积分流水</div></div>
+  ${tab==='boba'?`
+  <div class="card"><div class="card-title">🧋 当前共有</div><div style="font-size:24px;font-weight:700">${s.boba} 颗芋泥球</div></div>
+  ${s.bobaLog.map(l=>`<div class="log"><div><div style="font-weight:600">${l.tag} ${l.src}</div><div class="lt">${l.dt}</div></div><div class="lv plus">+${l.v}</div></div>`).join('')}
+  `:`
+  <div class="card"><div class="card-title">⭐ 今日已获</div><div style="font-size:24px;font-weight:700">${s.quizToday} / ${s.quizCap}</div></div>
+  ${s.quizLog.map(l=>`<div class="log"><div><div style="font-weight:600">${l.tag} ${l.src}</div><div class="lt">${l.dt}</div></div><div class="lv plus">+${l.v}</div></div>`).join('')}
+  `}`;
+};
+
+/* ============ TEACHER LOGIN ============ */
+function teacherLogin(){
+  if(DB.teacher.loggedIn){navigate('thome');return;}
+  openModal(`<h3>🔐 老师入口</h3>
+  <input type="password" class="input" id="pwinput" placeholder="请输入密码" onkeydown="if(event.key==='Enter')doLogin()">
+  <button class="btn btn-main btn-block" onclick="doLogin()">登录</button>
+  <button class="btn btn-outline btn-block mt" onclick="closeModal()">取消</button>`);
+}
+function doLogin(){
+  const v=document.getElementById('pwinput').value;
+  if(v===DB.teacher.password){DB.teacher.loggedIn=true;saveDB();closeModal();renderSidebar();toast('✅ 登录成功！');navigate('thome');}
+  else toast('❌ 密码错误，请重试');
+}
+function logoutTeacher(){DB.teacher.loggedIn=false;saveDB();renderSidebar();toast('已退出老师后台');navigate('home');}
+function addHome(){
+  toast('📱 点击浏览器菜单"添加到主屏幕"即可像APP一样使用~');
+}
+
+/* ============ TEACHER PAGES ============ */
+PAGES.thome=function(){
+  const s=DB.student;const t=DB.teacher;
+  const pending=t.toGrade.filter(g=>g.status==='pending').length;
+  return `
+  <div class="card"><div class="between flex center"><button class="btn btn-outline btn-sm" onclick="logoutTeacher()">退出</button>
+  <span class="text-sm muted">老师后台</span></div></div>
+  <button class="btn btn-accent btn-block mb" onclick="cloudPull();toast('🔄 正在同步云端数据...')">🔄 同步云端数据</button>
+  <div class="grid-2">
+    <div class="card"><div class="text-sm muted">📋 待批改作业</div><div style="font-size:22px;font-weight:700">${pending}份</div></div>
+    <div class="card"><div class="text-sm muted">📩 未读小纸条</div><div style="font-size:22px;font-weight:700">${t.notesUnread}条</div></div>
+    <div class="card"><div class="text-sm muted">📊 本周提交率</div><div style="font-size:22px;font-weight:700">80%</div></div>
+    <div class="card"><div class="text-sm muted">🧋 当前总积分</div><div style="font-size:22px;font-weight:700">${s.boba}颗</div></div>
+  </div>
+  <div class="section-label">🛠 功能</div>
+  <div class="grid-2">
+    <div class="feat" onclick="syncSubs();cloudPull();navigate('tgrade')"><div class="ic" style="background:var(--green-bg)">${SVG.task}</div>批改作业</div>
+    <div class="feat" onclick="navigate('treport')"><div class="ic" style="background:var(--purple-bg)">${SVG.chart}</div>学情报告</div>
+    <div class="feat" onclick="navigate('tpoints')"><div class="ic" style="background:var(--gold-bg)">${SVG.edit}</div>修改积分</div>
+    <div class="feat" onclick="navigate('tassign')"><div class="ic" style="background:#FDECEC">${SVG.book}</div>布置作业</div>
+    <div class="feat" onclick="navigate('tnotes')"><div class="ic" style="background:var(--green-bg)">${SVG.note}</div>小纸条管理</div>
+    <div class="feat" onclick="navigate('tquiz')"><div class="ic" style="background:var(--purple-bg)">${SVG.game}</div>闯关题库</div>
+    <div class="feat" onclick="navigate('tprogress')"><div class="ic" style="background:var(--gold-bg)">${SVG.book}</div>当前进度设置</div>
+    <div class="feat" onclick="navigate('tsettings')"><div class="ic" style="background:#F0F0F0">${SVG.settings}</div>系统设置</div>
+  </div>`;
+};
+function syncSubs(){
+  DB.student.homeworkSubs.forEach(s=>{if(!DB.teacher.toGrade.find(g=>g.dt===s.dt))DB.teacher.toGrade.push(s);});
+  saveDB();
+}
+
+PAGES.tgrade=function(){
+  const t=DB.teacher;
+  const list=t.toGrade.filter(g=>g.status==='pending');
+  return `
+  <div class="section-label">📋 待批改作业（${list.length}份）</div>
+  ${list.length===0?'<div class="card" style="text-align:center">🎉 暂无待批改作业</div>':
+  list.map((g,i)=>`
+  <div class="card">
+    <div class="between flex mb"><span style="font-weight:600">${g.dt}</span><span class="tag tag-yellow">⏳ 待批改</span></div>
+    <div class="thumbs">${g.imgs.map(img=>`<div class="thumb"><img src="${img}"></div>`).join('')}</div>
+    <button class="btn btn-main btn-block mt" onclick="gradeDetail(${i})">开始批改</button>
+  </div>`).join('')}`;
+};
+function gradeDetail(i){
+  const g=DB.teacher.toGrade.filter(x=>x.status==='pending')[i];
+  const realIdx=DB.teacher.toGrade.indexOf(g);
+  const presets=['太棒了！继续保持！💪','思路很好，计算再细心一点哦~','有进步！继续加油！🌸','彦材，今天表现不错，再仔细看看第三步~'];
+  openModal(`<h3>📋 批改详情</h3>
+  <div class="thumbs mb">${g.imgs.map(img=>`<div class="thumb" style="width:100%;height:auto"><img src="${img}" style="width:100%;height:auto"></div>`).join('')}</div>
+  <input type="number" class="input" id="gscore" placeholder="评分（如3）" step="0.5" value="3">
+  <textarea class="input" id="gcomment" placeholder="评语" rows="3"></textarea>
+  <div class="grid-2 mb">${presets.map(p=>`<button class="btn btn-outline btn-sm" onclick="document.getElementById('gcomment').value='${p}'">${p.slice(0,8)}...</button>`).join('')}</div>
+  <button class="btn btn-main btn-block" onclick="confirmGrade(${realIdx})">确认批改</button>
+  <button class="btn btn-outline btn-block mt" onclick="closeModal()">取消</button>`,true);
+}
+function confirmGrade(idx){
+  const score=parseFloat(document.getElementById('gscore').value)||0;
+  const comment=document.getElementById('gcomment').value;
+  const g=DB.teacher.toGrade[idx];
+  g.status='graded';
+  g.score=score;g.comment=comment;
+  DB.student.homeworkHistory.unshift({dt:todayStr(),status:'graded',comment});
+  saveDB();
+  // 上传批改结果到云端，让学生端也能收到
+  cloudGradeHW(g.dt,'graded',comment,score);
+  closeModal();toast('✅ 批改完成！正在同步到学生端...');render();
+}
+
+PAGES.tpoints=function(){
+  const s=DB.student;
+  return `
+  <div class="card"><div class="card-title">🧋 芋泥球管理</div>
+    <div class="between flex mb"><span>当前总数</span><b>${s.boba}颗</b></div>
+    <div class="text-xs muted">课堂${s.bobaBreakdown.class} · 作业${s.bobaBreakdown.homework} · 闯关${s.bobaBreakdown.quiz}</div>
+    <div class="divider"></div>
+    <div class="grid-2">
+      <input type="number" class="input" id="bv" placeholder="分值" step="0.5">
+      <select class="input" id="bsrc"><option>课堂答对</option><option>思路正确</option><option>完成作业</option><option>兑换奖励</option><option>手动调整</option></select>
+    </div>
+    <input class="input" id="bnote" placeholder="备注（选填）">
+    <div class="grid-2 mt"><button class="btn btn-main btn-sm" onclick="tAddBoba(1)">+ 添加</button>
+    <button class="btn btn-outline btn-sm" onclick="tAddBoba(-1)">- 扣减</button></div>
+  </div>
+  <div class="card"><div class="card-title">⭐ 闯关积分管理</div>
+    <div class="between flex mb"><span>当前</span><b>${s.quizTotal}分（今日${s.quizToday}/${s.quizCap}）</b></div>
+    <div class="grid-2">
+      <input type="number" class="input" id="qv" placeholder="分值">
+      <select class="input" id="qsrc"><option>闯关答对</option><option>手动调整</option></select>
+    </div>
+    <div class="grid-2 mt"><button class="btn btn-main btn-sm" onclick="tAddQuiz(1)">+ 添加</button>
+    <button class="btn btn-outline btn-sm" onclick="tAddQuiz(-1)">- 扣减</button></div>
+  </div>
+  <div class="section-label">📊 全部变动记录</div>
+  ${[...s.bobaLog.map(l=>({...l,type:'🧋'})),...s.quizLog.map(l=>({...l,type:'⭐'}))].sort((a,b)=>b.dt.localeCompare(a.dt)).slice(0,15).map(l=>`
+  <div class="log"><div><div style="font-weight:600">${l.type} ${l.tag} ${l.src}</div><div class="lt">${l.dt}</div></div><div class="lv plus">+${l.v}</div></div>`).join('')}`;
+};
+function tAddBoba(sign){
+  const v=parseFloat(document.getElementById('bv').value);if(!v){toast('请输入分值');return;}
+  const src=document.getElementById('bsrc').value;const note=document.getElementById('bnote').value;
+  if(sign<0){DB.student.boba=Math.max(0,DB.student.boba-v);DB.student.bobaLog.unshift({v:-v,dt:todayStr()+' '+new Date().toTimeString().slice(0,5),src,tag:'➖'});}
+  else addBoba(v,src,sign>0?'✅':'➖');
+  recomputePower();saveDB();toast('✅ 已更新');render();
+}
+function tAddQuiz(sign){
+  const v=parseFloat(document.getElementById('qv').value);if(!v){toast('请输入分值');return;}
+  const src=document.getElementById('qsrc').value;
+  if(sign>0){DB.student.quizTotal+=v;DB.student.quizLog.unshift({v,dt:todayStr()+' '+new Date().toTimeString().slice(0,5),src,tag:'🎮'});}
+  else{DB.student.quizTotal=Math.max(0,DB.student.quizTotal-v);DB.student.quizLog.unshift({v:-v,dt:todayStr()+' '+new Date().toTimeString().slice(0,5),src,tag:'➖'});}
+  recomputePower();saveDB();toast('✅ 已更新');render();
+}
+
+const CHAPTER_KPS={
+  '第25章 一元二次方程':['直接开平方法','配方法','公式法（判别式）','因式分解法','根与系数的关系'],
+  '第26章 二次函数':['二次函数图像','顶点与对称轴','解析式求法','二次函数与方程','实际应用'],
+  '第27章 反比例函数':['反比例函数图像','k的几何意义','与一次函数综合'],
+  '第28章 旋转':['旋转性质','中心对称','旋转作图'],
+  '第29章 圆':['圆的基本性质','垂径定理','圆周角定理','切线性质'],
+  '第30章 直线与圆的位置关系':['位置关系判定','切线长定理','三角形内切圆'],
+};
+let _generatedHW=null;
+
+function renderKPCheckboxes(ch){
+  const kps=CHAPTER_KPS[ch]||[];
+  if(!kps.length)return'<div class="text-sm muted">该章节暂考点数据，请手动出题</div>';
+  return `<div class="grid-2">${kps.map((k,i)=>`<label class="text-sm" style="display:flex;align-items:center;gap:6px;padding:6px 0"><input type="checkbox" class="kp-check" value="${k}" ${i<3?'checked':''}><span>${k}</span></label>`).join('')}</div>`;
+}
+
+PAGES.tassign=function(){
+  const ch=DB.student.chapter||CHAPTERS[0];
+  return `
+  <div class="card"><div class="card-title">📝 AI智能布置作业</div>
+    <label class="text-sm muted">日期</label><input type="date" class="input" id="adate" value="${new Date().toISOString().slice(0,10)}">
+    <label class="text-sm muted">章节</label>
+    <select class="input" id="achapter" onchange="document.getElementById('kpBox').innerHTML=renderKPCheckboxes(this.value);_generatedHW=null;document.getElementById('previewBox').innerHTML='';">
+      ${CHAPTERS.map(c=>`<option ${c===ch?'selected':''}>${c}</option>`).join('')}
+    </select>
+    <label class="text-sm muted">选择考点（可多选）</label>
+    <div id="kpBox">${renderKPCheckboxes(ch)}</div>
+    <div class="grid-3 mt">
+      <div><label class="text-xs muted">青铜题数</label><input type="number" class="input" id="nBase" value="4" min="0" max="10"></div>
+      <div><label class="text-xs muted">白银题数</label><input type="number" class="input" id="nMid" value="5" min="0" max="10"></div>
+      <div><label class="text-xs muted">黄金题数</label><input type="number" class="input" id="nHigh" value="2" min="0" max="5"></div>
+    </div>
+    <button class="btn btn-accent btn-block mt" onclick="aiGenerate()">✨ AI智能生成题目</button>
+  </div>
+  <div id="previewBox"></div>
+  <button class="btn btn-main btn-block" id="publishBtn" style="display:none" onclick="publishHW()">📤 发布作业</button>`;
+};
+
+function aiGenerate(){
+  const ch=document.getElementById('achapter').value;
+  const checks=document.querySelectorAll('.kp-check:checked');
+  const kps=Array.from(checks).map(c=>c.value);
+  if(!kps.length){toast('请至少选择一个考点');return;}
+  const nBase=+document.getElementById('nBase').value||0;
+  const nMid=+document.getElementById('nMid').value||0;
+  const nHigh=+document.getElementById('nHigh').value||0;
+  if(nBase+nMid+nHigh===0){toast('请至少生成1道题');return;}
+
+  toast('✨ AI正在生成题目...');
+  const result=generateQuestions(ch,kps,['基础','中档','拔高'],[nBase,nMid,nHigh]);
+
+  let html='';
+  if(result.base.length){
+    html+=`<div class="card" style="background:var(--green-bg)"><div class="card-title">🔥 青铜层（${result.base.length}道基础题·必做）</div>`;
+    result.base.forEach((q,i)=>{
+      html+=`<div class="mb" style="padding:8px;background:#fff;border-radius:8px;margin-bottom:8px">
+        <div class="text-sm"><b>${i+1}.</b> ${q.q}</div>
+        <div class="text-xs muted mt">${q.opts.map((o,j)=>`${String.fromCharCode(65+j)}. ${o}`).join('  ')}</div>
+        <div class="text-xs" style="color:var(--green)">✅ 答案：${String.fromCharCode(65+q.ans)} · ${q.parsing}</div>
+      </div>`;
+    });
+    html+=`</div>`;
+  }
+  if(result.mid.length){
+    html+=`<div class="card" style="background:var(--purple-bg)"><div class="card-title">💪 白银层（${result.mid.length}道中档题·必做）</div>`;
+    result.mid.forEach((q,i)=>{
+      html+=`<div class="mb" style="padding:8px;background:#fff;border-radius:8px;margin-bottom:8px">
+        <div class="text-sm"><b>${i+1}.</b> ${q.q}</div>
+        <div class="text-xs muted mt">${q.opts.map((o,j)=>`${String.fromCharCode(65+j)}. ${o}`).join('  ')}</div>
+        <div class="text-xs" style="color:var(--green)">✅ 答案：${String.fromCharCode(65+q.ans)} · ${q.parsing}</div>
+      </div>`;
+    });
+    html+=`</div>`;
+  }
+  if(result.high.length){
+    html+=`<div class="card" style="background:var(--gold-bg)"><div class="card-title">👑 黄金层（${result.high.length}道拔高题·选做）</div>`;
+    result.high.forEach((q,i)=>{
+      html+=`<div class="mb" style="padding:8px;background:#fff;border-radius:8px;margin-bottom:8px">
+        <div class="text-sm"><b>${i+1}.</b> ${q.q}</div>
+        <div class="text-xs muted mt">${q.opts.map((o,j)=>`${String.fromCharCode(65+j)}. ${o}`).join('  ')}</div>
+        <div class="text-xs" style="color:var(--green)">✅ 答案：${String.fromCharCode(65+q.ans)} · ${q.parsing}</div>
+      </div>`;
+    });
+    html+=`</div>`;
+  }
+  document.getElementById('previewBox').innerHTML=html;
+  _generatedHW=result;
+  document.getElementById('publishBtn').style.display='block';
+  toast('✅ 题目生成完成！');
+}
+
+function publishHW(){
+  if(!_generatedHW){toast('请先生成题目');return;}
+  const ch=document.getElementById('achapter').value;
+  const hwDate=document.getElementById('adate').value||new Date().toISOString().slice(0,10);
+  DB.student.chapter=ch;
+  // 将生成的题目写入missions
+  DB.student.missions.bronze=_generatedHW.base.map(q=>({done:false,src:'[AI生成·'+q.kp+']',q:q.q+'<br><small class="muted">'+q.opts.map((o,j)=>String.fromCharCode(65+j)+'. '+o).join(' ')+'</small>',kp:q.kp,ans:String.fromCharCode(65+q.ans),parsing:q.parsing}));
+  DB.student.missions.silver=_generatedHW.mid.map(q=>({done:false,src:'[AI生成·'+q.kp+']',q:q.q+'<br><small class="muted">'+q.opts.map((o,j)=>String.fromCharCode(65+j)+'. '+o).join(' ')+'</small>',kp:q.kp,ans:String.fromCharCode(65+q.ans),parsing:q.parsing}));
+  DB.student.missions.gold=_generatedHW.high.map(q=>({done:false,src:'[AI生成·'+q.kp+']',q:q.q+'<br><small class="muted">'+q.opts.map((o,j)=>String.fromCharCode(65+j)+'. '+o).join(' ')+'</small>',kp:q.kp,ans:String.fromCharCode(65+q.ans),parsing:q.parsing}));
+  saveDB();
+  // 上传到云端，让学生端也能收到
+  cloudPublishHW({
+    date:hwDate,
+    chapter:ch,
+    missions:JSON.parse(JSON.stringify(DB.student.missions))
+  });
+  toast('✅ 作业已发布！正在同步到学生端...');navigate('thome');
+}
+
+PAGES.tnotes=function(){
+  const s=DB.student;
+  return `
+  <div class="section-label">📩 小纸条管理</div>
+  ${s.notes.map((n,i)=>`
+  <div class="card">
+    <div class="between flex mb"><span class="text-xs muted">${n.t}</span>
+    <span class="tag ${n.me?'tag-yellow':'tag-green'}">${n.me?'🔴未读':'🟢已回复'}</span></div>
+    <div class="text-sm">${n.me?'学生':'老师'}：${n.text}</div>
+    ${n.me?`<button class="btn btn-outline btn-sm mt" onclick="replyNote(${i})">回复</button>`:''}
+  </div>`).join('')}`;
+};
+function replyNote(i){
+  openModal(`<h3>📩 回复学生</h3>
+  <div class="card mb" style="background:#f8f8f8">${DB.student.notes[i].text}</div>
+  <textarea class="input" id="replytext" placeholder="输入回复..." rows="3"></textarea>
+  <button class="btn btn-main btn-block" onclick="sendReply(${i})">回复</button>
+  <button class="btn btn-outline btn-block mt" onclick="closeModal()">取消</button>`);
+}
+function sendReply(i){
+  const v=document.getElementById('replytext').value.trim();if(!v)return;
+  DB.student.notes.push({me:false,text:v,t:todayStr()+' '+new Date().toTimeString().slice(0,5)});
+  DB.teacher.notesUnread=0;saveDB();closeModal();toast('✅ 已回复');render();
+}
+
+PAGES.tquiz=function(){
+  DB._qlevel=DB._qlevel||1;
+  const qs=DB.teacher.quizBank[DB._qlevel]||[];
+  return `
+  <div class="card"><div class="card-title">🎮 闯关题库管理</div>
+    <label class="text-sm muted">选择关卡</label>
+    <select class="input" onchange="DB._qlevel=+this.value;render()">${[1,2,3,4,5].map(i=>`<option value="${i}" ${i===DB._qlevel?'selected':''}>第${i}关</option>`).join('')}</select>
+  </div>
+  <div class="section-label">📝 题目列表（${qs.length}题）</div>
+  ${qs.map((q,i)=>`
+  <div class="card">
+    <div class="between flex mb"><span class="text-sm" style="flex:1"><b>${q.src}</b> ${q.q.slice(0,30)}...</span></div>
+    <div class="text-xs muted mb">📌 ${q.kp} · ${q.diff} · 答:${String.fromCharCode(65+q.ans)}</div>
+    <div class="flex gap"><button class="btn btn-outline btn-sm" onclick="editQuiz(${i})">${SVG.edit}编辑</button>
+    <button class="btn btn-outline btn-sm" onclick="delQuiz(${i})">${SVG.trash}删除</button></div>
+  </div>`).join('')}
+  <button class="btn btn-main btn-block mb" onclick="addQuizModal()">+ 新增题目</button>
+  <button class="btn btn-accent btn-block" onclick="batchImport()">📥 批量导入</button>`;
+};
+function addQuizModal(){quizForm({q:'',opts:['','','',''],ans:0,parsing:'',kp:'',diff:'基础',src:'[基础]'});}
+function editQuiz(i){
+  const q=DB.teacher.quizBank[DB._qlevel][i];DB._editQ=i;quizForm(q);
+}
+function quizForm(q){
+  openModal(`<h3>题目编辑</h3>
+  <textarea class="input" id="fq" placeholder="题目" rows="2">${q.q}</textarea>
+  ${[0,1,2,3].map(i=>`<input class="input" id="fo${i}" placeholder="选项${String.fromCharCode(65+i)}" value="${q.opts[i]||''}">`).join('')}
+  <label class="text-sm muted">正确答案</label>
+  <select class="input" id="fans">${[0,1,2,3].map(i=>`<option value="${i}" ${i===q.ans?'selected':''}>${String.fromCharCode(65+i)}</option>`).join('')}</select>
+  <textarea class="input" id="fp" placeholder="解析" rows="2">${q.parsing}</textarea>
+  <div class="grid-2"><input class="input" id="fkp" placeholder="知识点" value="${q.kp}">
+  <select class="input" id="fdiff"><option ${q.diff==='基础'?'selected':''}>基础</option><option ${q.diff==='中档'?'selected':''}>中档</option><option ${q.diff==='拔高'?'selected':''}>拔高</option></select></div>
+  <input class="input" id="fsrc" placeholder="来源标签" value="${q.src}">
+  <button class="btn btn-main btn-block mt" onclick="saveQuiz()">保存</button>
+  <button class="btn btn-outline btn-block mt" onclick="closeModal()">取消</button>`,true);
+}
+function saveQuiz(){
+  const q={q:document.getElementById('fq').value.trim(),opts:[0,1,2,3].map(i=>document.getElementById('fo'+i).value.trim()),
+    ans:+document.getElementById('fans').value,parsing:document.getElementById('fp').value.trim(),
+    kp:document.getElementById('fkp').value.trim(),diff:document.getElementById('fdiff').value,src:document.getElementById('fsrc').value.trim()};
+  if(!q.q||q.opts.some(o=>!o)){toast('请填写完整题目和选项');return;}
+  DB.teacher.quizBank[DB._qlevel]=DB.teacher.quizBank[DB._qlevel]||[];
+  if(DB._editQ!=null)DB.teacher.quizBank[DB._qlevel][DB._editQ]=q;
+  else DB.teacher.quizBank[DB._qlevel].push(q);
+  DB._editQ=null;saveDB();closeModal();toast('✅ 已保存');render();
+}
+function delQuiz(i){
+  DB.teacher.quizBank[DB._qlevel].splice(i,1);saveDB();render();
+}
+function batchImport(){
+  openModal(`<h3>📥 批量导入</h3>
+  <p class="text-xs muted mb">格式：题目|选项A|选项B|选项C|选项D|答案(0-3)|解析|知识点|来源，每行一题</p>
+  <textarea class="input" id="batchtext" rows="6" placeholder="x²-9=0的解是？|x=3|x=±3|x=-3|x=9|1|x²=9开方|直接开平方法|[基础]"></textarea>
+  <button class="btn btn-main btn-block mt" onclick="doBatch()">导入</button>
+  <button class="btn btn-outline btn-block mt" onclick="closeModal()">取消</button>`,true);
+}
+function doBatch(){
+  const t=document.getElementById('batchtext').value.trim();if(!t)return;
+  DB.teacher.quizBank[DB._qlevel]=DB.teacher.quizBank[DB._qlevel]||[];
+  t.split('\n').forEach(line=>{const p=line.split('|');if(p.length>=6){
+    DB.teacher.quizBank[DB._qlevel].push({q:p[0],opts:[p[1],p[2],p[3],p[4]],ans:+p[5],parsing:p[6]||'',kp:p[7]||'',diff:'基础',src:p[8]||'[导入]'});
+  }});
+  saveDB();closeModal();toast('✅ 导入完成');render();
+}
+
+PAGES.treport=function(){
+  const s=DB.student;
+  return `
+  <div class="card"><div class="card-title">📅 第31周（7月24日-7月30日）</div></div>
+  <div class="grid-2">
+    <div class="card"><div class="text-sm muted">芋泥球收入</div><div style="font-size:18px;font-weight:700">+12颗</div></div>
+    <div class="card"><div class="text-sm muted">日均芋泥球</div><div style="font-size:18px;font-weight:700">2.4颗</div></div>
+    <div class="card"><div class="text-sm muted">距兑换目标</div><div style="font-size:18px;font-weight:700">差${s.boba>=40?0:(40-s.boba)}颗</div></div>
+    <div class="card"><div class="text-sm muted">作业提交率</div><div style="font-size:18px;font-weight:700">80%</div></div>
+  </div>
+  <div class="card"><div class="card-title">📊 知识点掌握</div>
+    ${s.mastery.map(m=>`<div class="kbar"><div class="kl"><span>${m.name}</span><span>${m.p}%</span></div><div class="bar"><span style="width:${m.p}%"></span></div></div>`).join('')}
+  </div>
+  <div class="card" style="background:#FDECEC"><div class="card-title">⚠️ 薄弱知识点</div>
+    <div class="text-sm">${s.weak.join('、')}（正确率&lt;60%）</div></div>
+  <div class="card" style="background:var(--gold-bg);color:#8B6914"><div class="card-title">💡 下周建议</div>
+    <div class="text-sm">建议加强概率计算专项练习，相似三角形可结合动点问题巩固。继续保持每日闯关节奏~</div></div>
+  <button class="btn btn-main btn-block" onclick="toast('✅ 周报告已发送到学生端！')">📤 发送周报告</button>`;
+}
+
+PAGES.tprogress=function(){
+  return `
+  <div class="card"><div class="card-title">📚 当前教学进度</div>
+    <label class="text-sm muted">章节</label>
+    <select class="input" id="pchapter">${CHAPTERS.map(c=>`<option ${c===DB.student.chapter?'selected':''}>${c}</option>`).join('')}</select>
+    <label class="text-sm muted">子章节</label>
+    <input class="input" id="psub" placeholder="如：配方法">
+    <label class="text-sm muted">进度（%）</label>
+    <input type="number" class="input" id="pprog" value="${DB.student.chapterProgress}" min="0" max="100">
+    <button class="btn btn-main btn-block mt" onclick="saveProgress()">保存进度</button>
+  </div>`;
+}
+function saveProgress(){
+  DB.student.chapter=document.getElementById('pchapter').value;
+  DB.student.chapterProgress=Math.min(100,Math.max(0,+document.getElementById('pprog').value||0));
+  saveDB();toast('✅ 进度已保存');navigate('thome');
+}
+
+PAGES.tsettings=function(){
+  const s=DB.teacher.settings;
+  return `
+  <div class="card"><div class="card-title">💬 欢迎语设置</div>
+    <div class="card mb" style="background:var(--purple-bg)">${s.welcome}</div>
+    <input class="input" id="winput" value="${s.welcome}">
+    <div class="text-sm muted mt mb">预设模板：</div>
+    ${['彦材早安！今天也是超棒的一天！🌞','彦材，下午好！今天过得怎么样呀？🌸','彦材，晚上好！今天的你也很努力呢！🌟','彦材加油！老师一直在这里陪着你！💪'].map(t=>`<button class="btn btn-outline btn-sm mb" style="margin-right:6px" onclick="document.getElementById('winput').value='${t}'">${t.slice(0,8)}...</button>`).join('')}
+    <div class="flex between center mt mb"><span class="text-sm">按时间段自动切换</span>
+    <label><input type="checkbox" ${s.autoWelcome?'checked':''} onchange="DB.teacher.settings.autoWelcome=this.checked;saveDB()"></label></div>
+    <button class="btn btn-main btn-block" onclick="saveWelcome()">保存欢迎语</button>
+  </div>
+  <div class="card"><div class="card-title">💎 积分与兑换设置</div>
+    <label class="text-sm muted">积分名称</label><input class="input" id="pname" value="${s.pointName}">
+    <label class="text-sm muted">兑换目标</label><input type="number" class="input" id="ptarget" value="${s.exchangeTarget}">
+    <label class="text-sm muted">兑换奖品</label><input class="input" id="pitem" value="${s.exchangeItem}">
+    <label class="text-sm muted">作业奖励积分</label><input type="number" class="input" id="phw" value="${s.hwReward}">
+    <label class="text-sm muted">闯关每日上限</label><input type="number" class="input" id="pcap" value="${s.quizCap}">
+    <label class="text-sm muted">积分换算比例</label><input type="number" class="input" id="prate" value="${s.quizRate}">
+    <button class="btn btn-main btn-block mt" onclick="savePoints()">保存设置</button>
+  </div>
+  <div class="card"><div class="card-title">📝 作业设置</div>
+    <label class="text-sm muted">自动提醒时间</label><input class="input" id="premind" value="${s.hwRemind}">
+    <label class="text-sm muted">每日互动任务</label>
+    ${[0,1,2].map(i=>`<input class="input" id="dt${i}" value="${s.dailyTasks[i]||''}">`).join('')}
+    <div class="flex between center mb"><span class="text-sm">黄金层启用</span>
+    <label><input type="checkbox" ${s.goldOn?'checked':''} onchange="DB.teacher.settings.goldOn=this.checked;saveDB()"></label></div>
+    <button class="btn btn-main btn-block" onclick="saveHWSettings()">保存设置</button>
+  </div>
+  <div class="card"><div class="card-title">🔐 密码修改</div>
+    <input type="password" class="input" id="oldpw" placeholder="旧密码">
+    <input type="password" class="input" id="newpw" placeholder="新密码">
+    <input type="password" class="input" id="newpw2" placeholder="确认新密码">
+    <button class="btn btn-main btn-block" onclick="changePW()">修改密码</button>
+  </div>
+  <div class="card"><div class="card-title">💾 数据管理</div>
+    <button class="btn btn-outline btn-block mb" onclick="exportData()">📤 导出所有数据</button>
+    <label class="btn btn-outline btn-block">📥 导入数据<input type="file" accept=".json" style="display:none" onchange="importData(this)"></label>
+    <button class="btn btn-outline btn-block mt" style="color:#D08A8A" onclick="resetData()">🗑️ 重置所有数据</button>
+  </div>`;
+}
+function saveWelcome(){DB.teacher.settings.welcome=document.getElementById('winput').value;saveDB();toast('✅ 已保存');}
+function savePoints(){
+  DB.teacher.settings.pointName=document.getElementById('pname').value;
+  DB.teacher.settings.exchangeTarget=+document.getElementById('ptarget').value||40;
+  DB.teacher.settings.exchangeItem=document.getElementById('pitem').value;
+  DB.teacher.settings.hwReward=+document.getElementById('phw').value||3;
+  DB.student.quizCap=+document.getElementById('pcap').value||20;
+  DB.teacher.settings.quizCap=DB.student.quizCap;
+  DB.student.quizRate=+document.getElementById('prate').value||10;
+  DB.teacher.settings.quizRate=DB.student.quizRate;
+  saveDB();toast('✅ 已保存');render();
+}
+function saveHWSettings(){
+  DB.teacher.settings.hwRemind=document.getElementById('premind').value;
+  DB.teacher.settings.dailyTasks=[0,1,2].map(i=>document.getElementById('dt'+i).value);
+  DB.student.dailyTasks=DB.teacher.settings.dailyTasks.map(t=>({done:false,text:t}));
+  saveDB();toast('✅ 已保存');
+}
+function changePW(){
+  const o=document.getElementById('oldpw').value,n=document.getElementById('newpw').value,n2=document.getElementById('newpw2').value;
+  if(o!==DB.teacher.password){toast('❌ 旧密码错误');return;}
+  if(n!==n2){toast('❌ 两次新密码不一致');return;}
+  if(!n){toast('❌ 新密码不能为空');return;}
+  DB.teacher.password=n;saveDB();toast('✅ 密码修改成功');
+}
+function exportData(){
+  const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mathmilktea-'+todayStr().replace(/\/| /g,'-')+'.json';a.click();
+  toast('📤 已导出');
+}
+function importData(input){
+  const f=input.files[0];if(!f)return;const r=new FileReader();
+  r.onload=e=>{try{DB=JSON.parse(e.target.result);saveDB();toast('✅ 导入成功');render();}catch(err){toast('❌ 文件格式错误');}};r.readAsText(f);
+}
+function resetData(){
+  openModal(`<h3>⚠️ 确认重置？</h3><p class="muted text-sm" style="text-align:center;margin-bottom:16px;">所有数据将恢复为初始状态，不可恢复！</p>
+  <button class="btn btn-accent btn-block" onclick="doReset()">确认重置</button>
+  <button class="btn btn-outline btn-block mt" onclick="closeModal()">取消</button>`);
+}
+function doReset(){localStorage.removeItem(KEY);DB=JSON.parse(JSON.stringify(DEFAULT_DATA));saveDB();closeModal();toast('✅ 已重置');navigate('home');}
+
+/* ============ MODAL ============ */
+function openModal(html,wide){
+  document.getElementById('modalContent').innerHTML=html;
+  document.getElementById('modalContent').style.maxWidth=wide?'380px':'320px';
+  document.getElementById('modalBg').classList.add('open');
+}
+function closeModal(){document.getElementById('modalBg').classList.remove('open');}
+
+/* ============ INIT ============ */
+function init(){
+  loadDB();recomputePower();
+  document.getElementById('topDate').textContent=todayStr();
+  renderSidebar();
+  if(!DB.currentPage||!PAGES[DB.currentPage])DB.currentPage='home';
+  if(DB.currentPage.startsWith('t')&&DB.currentPage!=='thome'&&!DB.teacher.loggedIn&&DB.currentPage!=='teacherLogin'){DB.currentPage='home';}
+  navigate(DB.currentPage);
+  // cross-tab sync: BroadcastChannel
+  try{
+    _syncChannel=new BroadcastChannel('mathmilktea_sync');
+    _syncChannel.onmessage=function(ev){if(ev.data&&ev.data.type==='sync')_onSyncMessage();};
+  }catch(e){}
+  // cross-tab sync: storage event (fallback + same-origin)
+  window.addEventListener('storage',function(ev){
+    if(ev.key===KEY)_onSyncMessage();
+  });
+  // polling sync: check localStorage every 3s
+  setInterval(function(){
+    const raw=localStorage.getItem(KEY);
+    if(!raw)return;
+    const cur=JSON.stringify(DB);
+    if(raw!==cur){
+      try{
+        const parsed=JSON.parse(raw);
+        parsed.currentPage=DB.currentPage;
+        parsed.sidebarOpen=DB.sidebarOpen;
+        parsed.teacher.loggedIn=DB.teacher.loggedIn;
+        DB=parsed;
+        render();renderSidebar();
+      }catch(e){}
+    }
+  },3000);
+  // cloud sync: poll server every 10s for cross-device data
+  cloudPull();
+  setInterval(cloudPull,10000);
+}
+init();
+// Register Service Worker for PWA
+if('serviceWorker' in navigator){
+  window.addEventListener('load',function(){
+    navigator.serviceWorker.register('./sw.js').catch(function(err){
+      console.log('SW registration failed:',err);
+    });
+  });
+}
+</script>
+</body>
+</html>
